@@ -1,0 +1,1439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eduardo Perreca — Software Engineer</title>
+<meta name="description" content="Eduardo Perreca, software engineer based in Utrecht. A desktop you can click around, with a working terminal.">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  @property --base { syntax: "<color>"; inherits: true; initial-value: #23307a; }
+  @property --a { syntax: "<color>"; inherits: true; initial-value: #ff6f91; }
+  @property --b { syntax: "<color>"; inherits: true; initial-value: #845ec2; }
+  @property --c { syntax: "<color>"; inherits: true; initial-value: #2c73d2; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    --base: #23307a; --a: #ff6f91; --b: #845ec2; --c: #2c73d2; --blue: #0a64ff;
+    font: 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #1d1d1f; -webkit-font-smoothing: antialiased; user-select: none; background: var(--base);
+    transition: --base 1.4s, --a 1.4s, --b 1.4s, --c 1.4s; /* wallpapers cross-fade */
+  }
+  /* wallpaper: four soft colour fields, each drifting on its own slow path, so the mix never repeats exactly.
+     Only transforms animate (cheap on the GPU). Film grain on top so the gradients don't band. */
+  #wall { position: fixed; inset: 0; z-index: -2; overflow: hidden; background: var(--base); }
+  #wall i { position: absolute; top: 50%; left: 50%; width: 90vmax; height: 90vmax; margin: -45vmax; border-radius: 50%; will-change: transform;
+    background: radial-gradient(circle, var(--x) 0, transparent 66%); animation: 60s ease-in-out infinite alternate; }
+  #wall i:nth-child(1) { --x: var(--a); animation-name: f1; animation-duration: 47s; }
+  #wall i:nth-child(2) { --x: var(--b); animation-name: f2; animation-duration: 61s; }
+  #wall i:nth-child(3) { --x: var(--c); animation-name: f3; animation-duration: 73s; }
+  #wall i:nth-child(4) { --x: var(--a); animation-name: f4; animation-duration: 89s; opacity: .7; }
+  @keyframes f1 { from { transform: translate(-32vw, 30vh) scale(.9); } 50% { transform: translate(8vw, 12vh) scale(1.2); } to { transform: translate(30vw, 34vh) scale(1); } }
+  @keyframes f2 { from { transform: translate(34vw, 18vh) scale(1.1); } 50% { transform: translate(10vw, -22vh) scale(.85); } to { transform: translate(-26vw, -8vh) scale(1.15); } }
+  @keyframes f3 { from { transform: translate(-6vw, -38vh) scale(1.2); } 50% { transform: translate(-34vw, -4vh) scale(1); } to { transform: translate(24vw, -30vh) scale(.9); } }
+  @keyframes f4 { from { transform: translate(40vw, -36vh) scale(.7); } 50% { transform: translate(-10vw, 40vh) scale(.95); } to { transform: translate(-40vw, 10vh) scale(.75); } }
+  body::after { content: ""; position: fixed; inset: 0; z-index: -1; opacity: .13; mix-blend-mode: overlay; pointer-events: none;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  @keyframes hue { to { filter: hue-rotate(360deg); } }
+  @keyframes hop { to { translate: 0 -14px; } }
+  @keyframes fadein { from { opacity: 0; } }
+  @keyframes slidein { from { transform: translateX(120%); } }
+  body.party #wall { animation: hue 3s linear infinite; }
+  body.party #dock button { animation: hop .32s ease-in-out infinite alternate; }
+  body.party #dock button:nth-child(2n) { animation-delay: .16s; }
+
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: default; }
+  :focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .glass { background: rgba(242, 242, 246, .78); backdrop-filter: blur(34px) saturate(1.8); -webkit-backdrop-filter: blur(34px) saturate(1.8);
+    box-shadow: 0 0 0 .5px rgba(0, 0, 0, .28), 0 14px 40px rgba(0, 0, 0, .32); }
+
+  /* boot, panic, lock */
+  #boot { position: fixed; inset: 0; z-index: 99999; background: #000; color: #c9ccd6; transition: opacity .4s; }
+  #boot.fade { animation: fadein .6s ease-in; }
+  #boot pre { position: absolute; top: 14px; left: 14px; right: 14px; font: 11.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace; white-space: pre-wrap; color: #b4b4b8; }
+  #boot i { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 210px; height: 5px; border-radius: 3px; background: #2e2e33; overflow: hidden; }
+  #boot i::after { content: ""; display: block; height: 100%; border-radius: 3px; background: #fff; animation: load 1s cubic-bezier(.3, .1, .3, 1) forwards; }
+  #boot.loading pre { display: none; }
+  #boot.loading i { display: block; }
+  #boot.done { opacity: 0; pointer-events: none; }
+  @keyframes load { from { width: 0; } 55% { width: 62%; } to { width: 100%; } }
+  .panic { position: fixed; inset: 0; z-index: 99998; background: #000; color: #d6d6d6; padding: 8vh 8vw; font: 14px/1.7 ui-monospace, "SF Mono", Menlo, monospace; white-space: pre-wrap; }
+  .lock { position: fixed; inset: 0; z-index: 99990; display: grid; place-content: center; justify-items: center; color: #fff; animation: fadein .3s;
+    background: rgba(8, 10, 30, .3); backdrop-filter: blur(42px) saturate(1.4); -webkit-backdrop-filter: blur(42px) saturate(1.4); }
+  .lock.bye { opacity: 0; transform: scale(1.04); transition: opacity .28s, transform .28s; }
+  .lock b { animation: clockin .5s cubic-bezier(.2, .9, .3, 1); }
+  @keyframes clockin { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+  .saver { position: fixed; inset: 0; z-index: 99991; background: #000; cursor: none; animation: fadein .8s; }
+  .saver b { position: absolute; top: 0; left: 0; font-size: clamp(48px, 9vw, 120px); letter-spacing: -.04em; font-variant-numeric: tabular-nums; will-change: transform; }
+  .saver.bye { opacity: 0; transition: opacity .28s; }
+  html.bigcursor, html.bigcursor * { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 32 32'%3E%3Cpath d='M4 2v24l6.5-6 4.2 9.5 3.8-1.7-4.2-9.3H23z' stroke='%23fff' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 9 5, auto !important; }
+  .lock span { font-size: clamp(17px, 2vw, 24px); font-weight: 600; opacity: .9; }
+  .lock b { font-size: clamp(84px, 15vw, 170px); line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+  .lock small { margin-top: 20vh; font-size: 13px; opacity: .8; }
+
+  /* menu bar */
+  #menubar { position: fixed; inset: 0 0 auto 0; height: 26px; z-index: 9999; display: flex; align-items: center; padding: 0 8px;
+    color: #fff; background: rgba(30, 32, 52, .28); backdrop-filter: blur(30px) saturate(1.6); -webkit-backdrop-filter: blur(30px) saturate(1.6); white-space: nowrap; text-shadow: 0 0 1px rgba(0, 0, 0, .2); }
+  #menubar details { position: relative; }
+  #menubar summary { list-style: none; padding: 2px 10px; border-radius: 5px; display: grid; place-items: center; height: 22px; }
+  #menubar summary::-webkit-details-marker { display: none; }
+  #menubar details[open] > summary { background: rgba(255, 255, 255, .24); }
+  #menubar .sys summary { font-size: 15px; font-weight: 600; padding: 0 11px; }
+  #app { font-weight: 700; padding: 0 10px 0 6px; }
+  #menubar .gap { flex: 1; }
+  #menubar svg { height: 15px; display: block; }
+  #menubar .status { padding: 0 7px; display: grid; place-items: center; height: 22px; border-radius: 5px; }
+  #menubar button.status:hover { background: rgba(255, 255, 255, .2); }
+  #menubar .right .pop { left: auto; right: 0; }
+  #clock { padding: 0 6px 0 8px; font-variant-numeric: tabular-nums; }
+  .pop { position: absolute; top: 25px; left: 0; min-width: 232px; padding: 5px; border-radius: 8px; display: grid; color: #1d1d1f; text-shadow: none; z-index: 9999;
+    background: rgba(246, 246, 249, .95); } /* near-opaque: a blur nested inside the blurred menu bar can't see the page */
+  .pop button { display: flex; justify-content: space-between; gap: 28px; text-align: left; padding: 3px 10px; border-radius: 5px; }
+  .pop button:hover, .pop button:focus-visible { background: var(--blue); color: #fff; outline: 0; }
+  .pop kbd { font: inherit; opacity: .45; letter-spacing: .06em; }
+  .pop button:hover kbd { opacity: .85; }
+  .pop hr { border: 0; border-top: 1px solid rgba(0, 0, 0, .12); margin: 5px 10px; }
+  .ctx { position: fixed; top: auto; left: auto; }
+  .pop, .panel { animation: menuin .16s cubic-bezier(.2, .9, .3, 1); transform-origin: 20px 0; }
+  .panel { transform-origin: calc(100% - 20px) 0; animation-duration: .22s; }
+  @keyframes menuin { from { opacity: 0; transform: scale(.94) translateY(-6px); } }
+
+  /* status panels: battery, Wi-Fi, Control Centre, calendar */
+  .panel { position: absolute; top: 25px; right: 0; z-index: 9999; width: 290px; max-width: calc(100vw - 16px); padding: 10px; border-radius: 13px; display: grid; gap: 7px;
+    color: #1d1d1f; text-shadow: none; white-space: normal; background: rgba(240, 240, 244, .96); }
+  .panel .row { display: flex; justify-content: space-between; align-items: center; padding: 2px 6px; font-weight: 700; }
+  .panel small { padding: 0 6px; font-size: 11px; font-weight: 600; color: #7b7c84; }
+  .panel hr { border: 0; border-top: 1px solid rgba(128, 128, 128, .25); margin: 2px 6px; }
+  .panel .li { display: flex; gap: 6px; text-align: left; padding: 4px 6px; border-radius: 6px; }
+  .panel .li:hover, .panel .li:focus-visible { background: var(--blue); color: #fff; outline: 0; }
+  .panel .ck { width: 12px; flex: none; }
+  .sw { position: relative; width: 36px; height: 21px; border-radius: 11px; background: #c4c4ca; transition: background .15s; }
+  .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); transition: transform .15s; }
+  .sw[aria-checked="true"] { background: #34c759; }
+  .sw[aria-checked="true"]::after { transform: translateX(15px); }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .tile { display: flex; align-items: center; gap: 9px; padding: 10px; border-radius: 12px; text-align: left; font-weight: 600; background: rgba(255, 255, 255, .7); box-shadow: 0 0 0 .5px rgba(0, 0, 0, .08); }
+  .tile i { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 15px; color: #fff; background: #b4b4bb; }
+  .tile i svg { height: 13px; }
+  .tile[aria-pressed="true"] i { background: var(--blue); }
+  .panel input[type=range] { width: calc(100% - 12px); margin: 0 6px; accent-color: var(--blue); }
+  .swatches { display: flex; gap: 9px; padding: 2px 6px 4px; }
+  .swatches button { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 11px; font-weight: 700; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .3); }
+  .swatches .cur { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; font-variant-numeric: tabular-nums; padding: 0 2px; }
+  .cal b { font-size: 10px; color: #9a9aa0; padding-bottom: 2px; }
+  .cal span { width: 26px; height: 26px; line-height: 26px; margin: auto; border-radius: 50%; }
+  .cal .today { background: #ff3b30; color: #fff; font-weight: 700; }
+  #dim { position: fixed; inset: 0; z-index: 99980; background: #000; opacity: 0; pointer-events: none; }
+
+  /* Dark Mode (Control Centre). The terminal is already dark, so it's left alone. */
+  body.dm .win:not(.dark) { background: #1e1e20; color: #e6e6ea; }
+  body.dm .win:not(.dark) .bar { background: #3a3a3d; border-color: #000; }
+  body.dm .win:not(.dark):not(.active) .bar { background: #2c2c2f; }
+  body.dm .win:not(.dark) .title { color: #dcdce0; }
+  body.dm .doc div { color: #c6c6cc; }
+  body.dm .side { background: #2a2a2d; border-color: #000; }
+  body.dm .side button.cur, body.dm .ftool button:hover { background: rgba(255, 255, 255, .13); }
+  body.dm .ftool { color: #b0b0b6; border-color: #38383b; }
+  body.dm .fmain footer { background: #252528; border-color: #38383b; color: #98989f; }
+  body.dm .about button { background: #4a4a4e; }
+  body.dm .glass, body.dm .pop, body.dm .panel { background: rgba(42, 42, 46, .95); color: #f0f0f2; }
+  body.dm .tile { background: rgba(255, 255, 255, .1); }
+  body.dm #spot input { color: #f0f0f2; }
+  body.dm .doc a, body.dm .about a { color: #6cb6ff; }
+
+  /* desktop + icons */
+  #desk { position: fixed; inset: 26px 0 0 0; touch-action: none; }
+  #icons { position: absolute; top: 12px; right: 10px; bottom: 100px; display: flex; flex-flow: column wrap-reverse; align-content: flex-start; gap: 2px; }
+  .icon { width: 104px; padding: 5px 2px 6px; border-radius: 7px; display: grid; justify-items: center; gap: 3px; text-align: center; }
+  .icon svg { width: 56px; height: 56px; padding: 2px; border-radius: 6px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .3)); }
+  .icon span { font-size: 12px; font-weight: 500; line-height: 1.25; padding: 1px 6px 2px; border-radius: 4px; overflow-wrap: break-word; min-width: 0; max-width: 100%; }
+  #icons .icon span { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
+  .icon.sel svg { background: rgba(0, 0, 0, .22); }
+  #icons .icon.sel svg { background: rgba(255, 255, 255, .22); }
+  .icon.sel span { background: var(--blue); color: #fff; text-shadow: none !important; }
+  .marquee { position: absolute; z-index: 4; border: 1px solid rgba(255, 255, 255, .75); background: rgba(255, 255, 255, .16); pointer-events: none; }
+  #snap { position: absolute; z-index: 5; border-radius: 12px; border: 1.5px solid rgba(255, 255, 255, .65); background: rgba(255, 255, 255, .2); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    opacity: 0; pointer-events: none; transition: all .16s ease-out; }
+
+  /* windows */
+  .win { position: absolute; display: flex; flex-direction: column; min-width: 280px; min-height: 160px;
+    border-radius: 10px; overflow: hidden; background: #fff; resize: both; animation: pop .2s cubic-bezier(.2, .9, .3, 1.15);
+    box-shadow: 0 0 0 .5px rgba(0, 0, 0, .3), 0 10px 28px rgba(0, 0, 0, .25); transition: opacity .14s, transform .14s, box-shadow .2s, background-color .3s, color .3s; }
+  .win.active { box-shadow: 0 0 0 .5px rgba(0, 0, 0, .4), 0 30px 80px rgba(0, 0, 0, .5); }
+  .win.out { opacity: 0; transform: scale(.96); }
+  .win.mini { opacity: 0; transform: translateY(46vh) scale(.12); pointer-events: none; transition: opacity .3s, transform .3s cubic-bezier(.5, 0, .8, .4); }
+  .win.mini.slow { transition-duration: 2.6s; }
+  .win.moving { transition: left .22s, top .22s, width .22s, height .22s; transition-timing-function: cubic-bezier(.2, .8, .2, 1); }
+  @keyframes pop { from { opacity: 0; transform: scale(.94); } }
+  .bar { flex: none; height: 28px; display: grid; place-items: center; position: relative; background: #ececee; border-bottom: 1px solid #d3d3d7; touch-action: none; }
+  .title { font-weight: 700; color: #3d3d41; max-width: calc(100% - 150px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .win:not(.active) .bar { background: #f5f5f6; }
+  .win:not(.active) .title { opacity: .4; }
+  .lights { position: absolute; left: 9px; display: flex; gap: 8px; }
+  .lights button { position: relative; width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgba(0, 0, 0, .18); padding: 0; }
+  .lights button::after { content: ""; position: absolute; inset: -6px -3px; } /* bigger hit area */
+  /* glyphs are drawn, not typed: text never centres exactly in a 12px circle */
+  .lights:hover .close { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3.7 3.7l4.6 4.6M8.3 3.7L3.7 8.3' stroke='%23000' stroke-opacity='.55' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E"); }
+  .lights:hover .min { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.9 6h6.2' stroke='%23000' stroke-opacity='.55' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E"); }
+  .lights:hover .max { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3.4 3.4h3.5L3.4 6.9zM8.6 8.6H5.1l3.5-3.5z' fill='%23000' fill-opacity='.55'/%3E%3C/svg%3E"); }
+  .close { background: #ff5f57; } .min { background: #febc2e; } .max { background: #28c840; }
+  .win:not(.active) .lights:not(:hover) button { background: #d2d2d6; }
+  .body { flex: 1; overflow: auto; min-height: 0; }
+
+  .doc { padding: 24px 28px 30px; user-select: text; }
+  .doc h1 { font-size: 21px; letter-spacing: -.02em; margin-bottom: 10px; }
+  .doc div { font: 12.5px/1.65 ui-monospace, "SF Mono", Menlo, Consolas, monospace; white-space: pre-wrap; color: #33343a; }
+  .doc a, .about a { color: var(--blue); }
+
+  .finder { display: flex; overflow: hidden; }
+  .side { flex: none; width: 152px; padding: 10px 8px; display: grid; align-content: start; gap: 1px; background: #eeeef1; border-right: 1px solid #dcdce0; }
+  .side small { font-size: 11px; font-weight: 700; color: #9a9aa0; padding: 0 8px 4px; }
+  .side button { display: flex; align-items: center; gap: 7px; text-align: left; padding: 4px 8px; border-radius: 6px; }
+  .side button svg { width: 17px; height: 17px; }
+  .side button.cur { background: rgba(0, 0, 0, .1); }
+  .fmain { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .ftool { display: flex; align-items: center; gap: 8px; padding: 5px 10px; font-weight: 600; color: #5b5c62; border-bottom: 1px solid #e6e6ea; }
+  .ftool button { width: 26px; height: 22px; border-radius: 5px; font-size: 19px; line-height: 18px; }
+  .ftool button:hover { background: rgba(0, 0, 0, .08); }
+  .ftool button:disabled { opacity: .3; background: none; }
+  .grid { flex: 1; overflow: auto; padding: 14px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; }
+  .fmain footer { padding: 4px 12px; font-size: 11px; color: #77787f; text-align: center; background: #f6f6f8; border-top: 1px solid #e3e3e7; }
+
+  .about { padding: 26px 30px; text-align: center; display: grid; justify-items: center; gap: 4px; user-select: text; }
+  .about h2 { font-size: 22px; letter-spacing: -.02em; }
+  .about .dim, body.dm .about .dim { color: #86868b; margin-bottom: 14px; padding: 0; background: none; box-shadow: none; }
+  .about dl, .keys { display: grid; grid-template-columns: auto auto; gap: 4px 12px; text-align: left; font-size: 12px; margin-bottom: 16px; }
+  .about dt { text-align: right; font-weight: 600; }
+  .about button { padding: 3px 14px; border-radius: 6px; background: #fff; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .25), 0 1px 2px rgba(0, 0, 0, .15); }
+  .keys { padding: 18px 22px; gap: 7px 18px; font-size: 13px; margin: 0; align-content: start; }
+  .keys dt { font-weight: 600; white-space: nowrap; letter-spacing: .04em; }
+  .keys p { grid-column: 1 / -1; color: #86868b; font-size: 12px; margin-top: 8px; }
+
+  /* terminal */
+  .win.dark { background: rgba(28, 28, 30, .82); backdrop-filter: blur(30px) saturate(1.6); -webkit-backdrop-filter: blur(30px) saturate(1.6); }
+  .win.dark .bar { background: rgba(58, 58, 61, .85); border-color: rgba(0, 0, 0, .7); }
+  .win.dark:not(.active) .bar { background: rgba(44, 44, 47, .85); }
+  .win.dark .title { color: #dcdce0; }
+  .term { padding: 6px 8px; font: 12.5px/1.45 "SF Mono", ui-monospace, Menlo, Consolas, monospace; color: #f2f2f4; white-space: pre-wrap; word-break: break-word; user-select: text; cursor: text; }
+  .term a { color: #7ab8ff; }
+  .term .dir { color: #6cb6ff; font-weight: 600; }
+  .term .dim { color: #98989f; }
+  .term .line { display: flex; gap: 7px; }
+  .term input { flex: 1; min-width: 0; font: inherit; color: inherit; background: none; border: 0; outline: 0; padding: 0; caret-color: #c8c8cc; }
+  .term pre { font: inherit; line-height: 1.15; color: #7ee787; }
+  .term .htop { color: inherit; line-height: 1.35; }
+  .htop .g { color: #7ee787; } .htop .warn { color: #ff7b72; }
+  .htop .hd { background: #3fb950; color: #000; }
+  .htop .hl { background: #2f6fe4; color: #fff; }
+  .htop .fk { background: #57c7ff; color: #000; }
+  .rain { position: absolute; inset: 28px 0 0 0; width: 100%; height: calc(100% - 28px); background: #080a0c; }
+
+  /* dock */
+  #dock { position: fixed; bottom: 6px; left: 50%; transform: translateX(-50%); z-index: 9998; display: flex; align-items: flex-end; gap: 6px; padding: 6px 7px 8px; border-radius: 20px;
+    background: rgba(255, 255, 255, .22); backdrop-filter: blur(28px) saturate(1.6); -webkit-backdrop-filter: blur(28px) saturate(1.6); box-shadow: 0 0 0 .5px rgba(255, 255, 255, .4), 0 10px 30px rgba(0, 0, 0, .3); }
+  #dock button { --s: 1; position: relative; flex: none; width: 50px; height: 50px; border-radius: 12px; display: grid; place-items: center; color: #fff; font: 800 22px/1 -apple-system, system-ui, sans-serif;
+    transform: scale(var(--s)); transform-origin: bottom; margin: 0 calc((var(--s) - 1) * 25px); transition: transform .09s, margin .09s;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255, 255, 255, .25); }
+  #dock button::before { content: attr(aria-label); position: absolute; bottom: 62px; padding: 3px 10px; border-radius: 6px; font: 500 12px/1.3 -apple-system, system-ui, sans-serif; color: #1d1d1f; white-space: nowrap;
+    background: rgba(246, 246, 248, .92); box-shadow: 0 2px 10px rgba(0, 0, 0, .3); opacity: 0; pointer-events: none; transform: scale(calc(1 / var(--s))); transform-origin: bottom; }
+  #dock button:hover::before, #dock button:focus-visible::before { opacity: 1; }
+  #dock button.on::after { content: ""; position: absolute; bottom: -6px; width: 4px; height: 4px; border-radius: 50%; background: rgba(255, 255, 255, .9); }
+  #dock .term-tile { font: 700 15px/1 "SF Mono", ui-monospace, Menlo, monospace; place-items: start; padding: 9px 0 0 8px; box-shadow: 0 2px 6px rgba(0, 0, 0, .3), inset 0 0 0 2px #cfcfd4; }
+  #dock .chip { background: #fff; animation: pop .3s cubic-bezier(.2, .9, .3, 1.3); }
+  #dock svg { width: 32px; height: 32px; }
+  #dock hr { align-self: center; height: 42px; border: 0; border-left: 1px solid rgba(255, 255, 255, .45); margin: 0 4px; }
+
+  /* spotlight + notification */
+  #spot { position: fixed; top: 21vh; left: 50%; width: min(640px, calc(100vw - 24px)); z-index: 9997; border-radius: 14px; overflow: hidden;
+    opacity: 0; visibility: hidden; transform: translateX(-50%) scale(.95); transform-origin: 50% 30px;
+    transition: opacity .14s ease-in, transform .14s ease-in, visibility 0s .14s; }
+  #spot.open { opacity: 1; visibility: visible; transform: translateX(-50%) scale(1); transition: opacity .16s ease-out, transform .32s cubic-bezier(.2, 1.3, .35, 1), visibility 0s; }
+  #spot input { width: 100%; border: 0; outline: 0; font: 400 22px/1.2 inherit; font-family: inherit; padding: 14px 18px 14px 50px; color: #1d1d1f;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5' fill='none' stroke='%23888' stroke-width='2.2'/%3E%3Cpath d='M15.5 15.5 21 21' stroke='%23888' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E") 17px center / 22px no-repeat; }
+  #spot div button { animation: rowin .22s cubic-bezier(.2, .9, .3, 1) backwards; animation-delay: calc(var(--i, 0) * 22ms); }
+  @keyframes rowin { from { opacity: 0; transform: translateY(6px); } }
+  #spot div:not(:empty) { border-top: 1px solid rgba(0, 0, 0, .1); padding: 6px; }
+  #spot div button { display: flex; align-items: baseline; gap: 12px; width: 100%; text-align: left; padding: 6px 12px; border-radius: 7px; font-size: 14px; }
+  #spot div button.cur { background: var(--blue); color: #fff; }
+  #spot small { flex: 1; min-width: 0; opacity: .6; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .note { position: fixed; top: 36px; right: 12px; z-index: 9990; width: 340px; max-width: calc(100vw - 24px); padding: 11px 14px; border-radius: 16px; animation: slidein .5s cubic-bezier(.2, .9, .3, 1); transition: opacity .3s, transform .3s; }
+  .note b { display: block; margin-bottom: 2px; }
+  .note .x { position: absolute; top: -7px; left: -7px; width: 21px; height: 21px; border-radius: 50%; padding: 0; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .25), 0 1px 4px rgba(0, 0, 0, .3);
+    background: #ececf0 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 3l6 6M9 3L3 9' stroke='%23555' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") center / 11px no-repeat; }
+  .note .x:hover { background-color: #fff; }
+  .note.out { opacity: 0; transform: translateX(40px); }
+
+  @media (max-width: 700px) {
+    .win { left: 6px !important; width: calc(100vw - 12px) !important; max-height: calc(100vh - 130px); resize: none; }
+    #menubar details:not(.sys):not(.right) { display: none; }
+    .side { display: none; }
+    .icon { width: 84px; }
+    #dock button { width: 44px; height: 44px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #boot { display: none; }
+    #wall i, .win, .note, .lock, .pop, .panel, #spot div button, #dock .chip { animation: none; }
+    body, #spot, #spot.open { transition: none; }
+    .win, .win.moving, .win.mini, #dock button, #snap { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="wall" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+<div id="boot" aria-hidden="true"><pre></pre><i></i></div>
+<header id="menubar"></header>
+<main id="desk"><nav id="icons" aria-label="Desktop"></nav><div id="snap"></div></main>
+<nav id="dock" aria-label="Dock"></nav>
+<div id="spot" class="glass"><input placeholder="Spotlight Search" aria-label="Spotlight Search" spellcheck="false" autocomplete="off"><div></div></div>
+
+<script type="module">
+const MAIL = 'perrecae@gmail.com', GH = 'https://github.com/eduardperreca', IN = 'https://linkedin.com/in/eduardo-perreca';
+
+// The whole site's content: desktop icons, Finder, Spotlight and the terminal all read this tree.
+// Names starting with a dot are hidden everywhere except `ls -a`.
+const FS = {
+  'about.txt':
+`Eduardo Perreca
+Software Engineer, based in Utrecht (NL)
+
+I build backends, distributed systems and the plumbing that makes
+AI products trustworthy: retrieval, evaluation, deployment.
+
+Before this: CTO of a small company shipping automation software
+to thousands of users, a security startup, a hospital research
+lab, Tesla and CERN.
+
+Right now I'm finishing an MSc in Computer Science at the
+University of Milan and starting an MSc in Artificial Intelligence
+at Utrecht University.`,
+
+  work: {
+    'cern.txt':
+`CERN — Software Engineer Intern
+Apr 2026 – Aug 2026 · Geneva, Switzerland
+
+- Selected as 1 of 50 from 13,000+ applicants for the Technical
+  Internship programme.
+- Rebuilt a RAG chatbot over Future Circular Collider docs
+  (Python, Flask) into a ReAct tool-calling agent: hybrid retrieval
+  (FAISS + BM25, RRF fusion, cross-encoder reranking) and an
+  LLM-as-Judge groundedness gate that blocks unsupported answers.
+- Built a multilingual black-box evaluation framework for it:
+  5-layer pipeline, multi-model judge ensemble, cross-lingual
+  consistency across 5 languages, run in GitLab CI/CD.
+- Owned the OKD/Kubernetes deployment: Helm charts, CronJob
+  ingestion with content-hash caching (~95% less re-ingestion
+  time), content-addressed base images (~80% faster builds).`,
+    'tesla.txt':
+`Tesla — Software Engineer Intern
+Oct 2025 – Apr 2026 · Amsterdam, Netherlands
+
+- Full-stack internal applications for the Service Center
+  Application Engineering team: C# (.NET, MVC), SQL Server,
+  Angular. Used daily by technicians across hundreds of Service
+  Centers worldwide.
+- Helped re-engineer the invoicing module (multi-invoicing).
+- Instrumented and debugged production services with Splunk on
+  Azure, cutting incident time-to-detection.`,
+    'gemini-security.txt':
+`Gemini Security — Founding Software Engineer
+Mar 2025 – Aug 2025 · Bergamo, Italy
+
+- Designed the backend of a security analytics product that
+  monitors and labels millions of daily requests (Nginx,
+  Cloudflare) in near real time.
+- Go APIs applying heuristic rules to flag malicious requests,
+  groundwork for ML-based detection.
+- Fingerprinting tools in Go, Python and TypeScript (FP-STALKER
+  style, mouse-movement detection): 95% accuracy.`,
+    'unimi-research.txt':
+`Università degli Studi di Milano — Research Intern (BSc thesis)
+Sep 2024 – Jun 2025 · Milan, Italy
+
+- Core module of CADET, a telemedicine platform for remote
+  monitoring of hemophilia patients, with the Policlinico of
+  Milan. React + TypeScript frontend on a real-time middleware
+  streaming ultrasound data from diagnostic probes.
+- ML pipeline classifying ultrasound images by joint and scan
+  mode. YOLO v3 (C++) plus OCR-based side detection took accuracy
+  from 30% to 98%.`,
+    'robotics-europe.txt':
+`Robotics Europe Ltd — Chief Technology Officer
+Oct 2020 – Jan 2025 · Remote
+
+- Led full-stack development of BurstAIO, a top EU sneaker bot
+  (3,500+ users), and Mintech, a best-selling ETH automation tool.
+- Rewrote backend APIs from Python to Go, scaling to thousands of
+  concurrent checkout tasks. Dashboards in React/TypeScript,
+  desktop apps in PyQt5 and Electron.
+- Proxy rotation, request handling, captcha solving; smart
+  contracts on Bitcoin, Ethereum, Solana and Polygon.
+- AWS + Docker deployments. €2.5M+ revenue, team of 15+.`,
+  },
+
+  projects: {
+    'redlimit.txt':
+`redlimit
+A rate limiter in Go on top of Redis. Built to learn how the
+algorithms behave under real concurrency, not just on paper.
+
+${GH}/redlimit`,
+    'redshortener.txt':
+`redshortener
+A URL shortener in Go: Postgres as the source of truth (Patroni
+for high availability), Redis as the cache in front. Custom
+aliases, edit and delete.
+
+${GH}/redshortener`,
+  },
+
+  'education.txt':
+`Education
+MSc Artificial Intelligence — Utrecht University
+Just started.
+
+MSc & BSc Computer Science — Università degli Studi di Milano
+Finishing the MSc, expected 2027
+
+Coursework: Parallel & Distributed Algorithms, Cloud Computing
+Technologies, ML on Graphs, Reinforcement Learning, Algorithms &
+Data Structures, Computer Networks, Software Engineering,
+Operational Research, OS, Quantum Computing, Databases.`,
+
+  'skills.txt':
+`Skills
+Languages   Go, Python, C#, TypeScript, C++, SQL
+Backend     .NET, Flask, REST APIs, Redis, Postgres, SQL Server
+AI          RAG, hybrid retrieval, LLM evaluation, YOLO, OCR
+Infra       Kubernetes/OKD, Helm, Docker, AWS, Azure, GitLab CI
+Frontend    React, Angular, Electron`,
+
+  'contact.txt':
+`Contact
+Email     ${MAIL}
+GitHub    ${GH}
+LinkedIn  ${IN}
+Where     Utrecht, Netherlands`,
+
+  '.secret.txt':
+`You ran ls -a
+Most people never look for hidden files. You did, which is
+roughly the trait I'd hire for.
+
+Email ${MAIL} with the subject "ls -a" and the first
+coffee in Utrecht is on me.`,
+
+  '.Trash': {},
+};
+
+const ICON = {
+  file: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 4h18l9 9v31H11z" fill="#fff"/><path d="M29 4v9h9z" fill="#cfd4de"/><path d="M17 22h15M17 28h15M17 34h9" stroke="#9aa3b5" stroke-width="2"/></svg>',
+  folder: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M4 12a3 3 0 0 1 3-3h11l4 4h19a3 3 0 0 1 3 3v4H4z" fill="#2f8be6"/><rect x="4" y="15" width="40" height="25" rx="3" fill="#62b6ff"/></svg>',
+  mail: '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="11" width="36" height="26" rx="4" fill="#fff"/><path d="M8 14l16 12 16-12" fill="none" stroke="#2f8be6" stroke-width="3"/></svg>',
+  trash: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M14 16h20l-2 26H16z" fill="#fff"/><rect x="11" y="11" width="26" height="4" rx="2" fill="#fff"/><rect x="20" y="7" width="8" height="4" rx="1.5" fill="#fff"/><path d="M20 21v16M24 21v16M28 21v16" stroke="#9aa3b5" stroke-width="2"/></svg>',
+  branch: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#fff" stroke-width="2"><circle cx="7" cy="5" r="2.3"/><circle cx="7" cy="19" r="2.3"/><circle cx="17" cy="8" r="2.3"/><path d="M7 7.5v9M17 10.5c0 4-10 2-10 6"/></svg>',
+  wifi: '<svg viewBox="0 0 24 22" aria-hidden="true"><path d="M2 8a15 15 0 0 1 20 0M5.5 11.8a10 10 0 0 1 13 0M9 15.4a5 5 0 0 1 6 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="19" r="1.7" fill="currentColor"/></svg>',
+  battery: '<svg viewBox="0 0 30 14" aria-hidden="true"><rect x=".7" y=".7" width="25" height="12.6" rx="3.6" fill="none" stroke="currentColor" opacity=".5" stroke-width="1.2"/><rect id="batt" x="2.5" y="2.5" width="18" height="9" rx="2" fill="currentColor"/><path d="M27.5 4.5v5a2.6 2.6 0 0 0 0-5z" fill="currentColor" opacity=".5"/></svg>',
+  search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  control: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3.5" width="20" height="7.5" rx="3.75" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="7" cy="7.25" r="2" fill="currentColor"/><rect x="2" y="13" width="20" height="7.5" rx="3.75" fill="currentColor"/><circle cx="17" cy="16.75" r="2" fill="#223" opacity=".7"/></svg>',
+};
+
+const desk = document.getElementById('desk'), icons = document.getElementById('icons'), dock = document.getElementById('dock'), menubar = document.getElementById('menubar');
+const $ = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const isDir = n => typeof n === 'object';
+const names = (n, all) => Object.keys(n).filter(k => all || k[0] !== '.');
+const coarse = !matchMedia('(pointer: fine)').matches;
+const appName = $('b', '', 'Finder'); appName.id = 'app';
+
+// Text in, DOM out; URLs and emails become links. Never innerHTML, so `echo <script>` stays text.
+const LINK = /(https?:\/\/[^\s"]+|[\w.+-]+@[\w-]+\.[\w.]+)/g;
+function fill(el, text) {
+  String(text).split(LINK).forEach((s, i) => {
+    if (i % 2) { const a = $('a', '', s); a.href = s.includes('://') ? s : 'mailto:' + s; a.target = '_blank'; a.rel = 'noopener'; el.append(a); }
+    else el.append(s);
+  });
+  return el;
+}
+
+// ---- filesystem ----
+let cwd = [];
+function resolve(p) {
+  const parts = /^[~/]/.test(p) ? [] : [...cwd];
+  for (const seg of p.replace(/^~/, '').split('/')) {
+    if (!seg || seg === '.') continue;
+    if (seg === '..') parts.pop(); else parts.push(seg);
+  }
+  return parts;
+}
+const node = parts => parts.reduce((n, s) => (n && isDir(n) && Object.hasOwn(n, s) ? n[s] : undefined), FS);
+const tilde = parts => '~' + parts.map(s => '/' + s).join('');
+function walk(n, parts, cb) {
+  if (!isDir(n)) return cb(parts, n);
+  for (const k of names(n)) walk(n[k], [...parts, k], cb);
+}
+
+// ---- windows ----
+let z = 10;
+const wins = () => [...desk.querySelectorAll('.win:not(.mini):not(.out)')];
+const topWin = () => wins().sort((a, b) => b.style.zIndex - a.style.zIndex)[0];
+const active = () => desk.querySelector('.win.active');
+function front(el) {
+  if (el) el.style.zIndex = ++z;
+  for (const w of desk.querySelectorAll('.win')) w.classList.toggle('active', w === el);
+  appName.textContent = el?.dataset.app ?? 'Finder';
+}
+function close(el) {
+  if (el.id === 'term') { release(); trap = null; }
+  el._chip?.remove();
+  el.id = ''; el.classList.add('out');
+  setTimeout(() => el.remove(), 150);
+  front(topWin()); sync();
+}
+// Minimise parks the window in the Dock as a chip; clicking the chip brings it back.
+function minimise(el, e) {
+  if (el._chip) return;
+  el.classList.toggle('slow', !!e?.shiftKey); // Shift-click: slow motion, like the real thing
+  el.classList.add('mini');
+  const chip = el._chip = $('button', 'chip'); chip.innerHTML = el.id === 'term' ? '' : ICON.file;
+  if (el.id === 'term') { chip.className = 'chip term-tile'; chip.textContent = '>_'; chip.style.background = '#1c1c1e'; }
+  chip.setAttribute('aria-label', el.querySelector('.title').textContent);
+  chip.onclick = () => restore(el);
+  dock.insertBefore(chip, dock.querySelector('hr'));
+  front(topWin());
+}
+function restore(el) {
+  el._chip?.remove(); el._chip = null;
+  el.classList.remove('mini');
+  front(el);
+}
+
+// Tiling. A zone is a rectangle of the desktop above the Dock; snapping remembers the old frame so it can be undone.
+function zone(name) {
+  const g = 6, W = desk.clientWidth, H = desk.clientHeight - 80, hw = (W - 3 * g) / 2, hh = (H - 3 * g) / 2;
+  return [/right/.test(name) ? 2 * g + hw : g, /bottom/.test(name) ? 2 * g + hh : g, /left|right/.test(name) ? hw : W - 2 * g, /top|bottom/.test(name) ? hh : H - 2 * g];
+}
+function zoneAt(x, y) {
+  const e = 10, side = x < e ? 'left' : x > innerWidth - e ? 'right' : '';
+  if (side) return y < innerHeight * .22 ? 'top-' + side : y > innerHeight * .78 ? 'bottom-' + side : side;
+  return y < desk.offsetTop + 4 ? 'max' : null;
+}
+const frame = el => [el.style.left, el.style.top, el.style.width, el.style.height];
+function place(el, [l, t, w, h]) {
+  el.classList.add('moving');
+  Object.assign(el.style, { left: l, top: t, width: w, height: h });
+  setTimeout(() => el.classList.remove('moving'), 240);
+}
+function snap(el, name, from = frame(el)) {
+  el._prev ??= from; el.dataset.snap = name;
+  place(el, zone(name).map(v => v + 'px'));
+}
+function unsnap(el) {
+  if (!el._prev) return;
+  place(el, el._prev); delete el._prev; delete el.dataset.snap;
+}
+const zoom = el => { el.dataset.snap === 'max' ? unsnap(el) : snap(el, 'max'); };
+const preview = name => {
+  const s = document.getElementById('snap');
+  if (!name) return s.style.opacity = 0;
+  const [l, t, w, h] = zone(name);
+  Object.assign(s.style, { left: l + 'px', top: t + 'px', width: w + 'px', height: h + 'px', opacity: 1 });
+};
+
+// Where to open a w×h window: try a grid of positions and take the one that covers the least of the
+// other windows and the desktop icons, with a mild pull towards the centre. Size is clamped to fit above the Dock.
+function findSpot(w, h) {
+  const m = 8, W = desk.clientWidth, H = desk.clientHeight - 84;
+  w = Math.min(w, W - 2 * m); h = Math.min(h, H - 2 * m);
+  const ir = icons.getBoundingClientRect();
+  const taken = [[ir.left, ir.top - desk.offsetTop, ir.width, ir.height], ...wins().map(o => [o.offsetLeft, o.offsetTop, o.offsetWidth, o.offsetHeight])];
+  let best = [m, m], low = Infinity;
+  for (let i = 0; i <= 8; i++) for (let j = 0; j <= 5; j++) {
+    const x = m + (W - 2 * m - w) * i / 8, y = m + (H - 2 * m - h) * j / 5;
+    let score = Math.hypot(x + w / 2 - W / 2, y + h / 2 - H * .45) * 40;
+    for (const [ox, oy, ow, oh] of taken) {
+      score += Math.max(0, Math.min(x + w, ox + ow) - Math.max(x, ox)) * Math.max(0, Math.min(y + h, oy + oh) - Math.max(y, oy));
+      if (Math.abs(x - ox) < 24 && Math.abs(y - oy) < 24) score += 1e6; // never exactly on top of another title bar
+    }
+    if (score < low) { low = score; best = [x, y]; }
+  }
+  return [Math.round(best[0]), Math.round(best[1]), w, h];
+}
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+function win(id, title, body, w = 540, h = 360, cls = '', app = 'Finder') {
+  let el = document.getElementById(id);
+  if (el) { restore(el); return el; }
+  el = $('section', 'win ' + cls); el.id = id; el.dataset.app = app; el.setAttribute('aria-label', title);
+  const [l, t, fw, fh] = findSpot(w, h);
+  Object.assign(el.style, { width: fw + 'px', height: fh + 'px', left: l + 'px', top: t + 'px' });
+  const bar = $('header', 'bar'), lights = $('div', 'lights');
+  for (const [c, label, fn] of [['close', 'Close', close], ['min', 'Minimise', minimise], ['max', 'Zoom', zoom]]) {
+    const b = $('button', c); b.setAttribute('aria-label', label + ' ' + title); b.onclick = e => fn(el, e);
+    lights.append(b);
+  }
+  bar.append(lights, $('span', 'title', title));
+  body.classList.add('body');
+  el.append(bar, body);
+  el.addEventListener('pointerdown', () => front(el));
+  bar.ondblclick = e => { if (!e.target.closest('button')) zoom(el); };
+  bar.addEventListener('pointerdown', e => {
+    if (e.target.closest('button') || e.button) return;
+    const origin = el._prev ?? frame(el);
+    let dx = e.clientX - el.offsetLeft, dy = e.clientY - el.offsetTop, moved = false, target = null;
+    bar.setPointerCapture(e.pointerId);
+    bar.onpointermove = m => {
+      if (!moved && Math.hypot(m.clientX - e.clientX, m.clientY - e.clientY) < 4) return;
+      if (!moved && el._prev) { // tearing a snapped window off: back to its old size, still under the cursor
+        const r = dx / el.offsetWidth;
+        el.style.width = origin[2]; el.style.height = origin[3]; dx = r * parseFloat(origin[2]);
+        delete el._prev; delete el.dataset.snap;
+      }
+      moved = true;
+      // keep the title bar reachable: not past the side edges, not under the menu bar or the Dock
+      el.style.left = clamp(m.clientX - dx, 90 - el.offsetWidth, desk.clientWidth - 90) + 'px';
+      el.style.top = clamp(m.clientY - dy, 0, desk.clientHeight - 112) + 'px';
+      preview(target = zoneAt(m.clientX, m.clientY));
+    };
+    bar.onpointerup = () => { bar.onpointermove = bar.onpointerup = null; preview(null); if (target) snap(el, target, origin); };
+  });
+  desk.append(el); front(el); sync();
+  return el;
+}
+
+// Icons behave like Finder's: click selects, double-click opens. Touch and keyboard open straight away.
+function select(list, add) {
+  if (!add) for (const s of document.querySelectorAll('.icon.sel')) s.classList.remove('sel');
+  for (const b of list) b.classList.add('sel');
+}
+function icon(label, kind, open) {
+  const b = $('button', 'icon'); b.innerHTML = ICON[kind]; b.append($('span', '', label));
+  b.onclick = e => e.detail === 0 || coarse ? open() : select([b], e.metaKey || e.shiftKey);
+  b.ondblclick = open;
+  return b;
+}
+
+// ---- Finder + documents ----
+let fpath = [], fback = [], F, showHidden = false;
+const SIDEBAR = [['eduardo', []], ['work', ['work']], ['projects', ['projects']], ['Trash', ['.Trash']]];
+function finder(parts = [], isBack = false) {
+  if (!document.getElementById('finder')) {
+    const box = $('div', 'finder'), side = $('aside', 'side'), main = $('div', 'fmain'), tool = $('div', 'ftool');
+    F = { side, back: $('button', '', '‹'), crumb: $('span'), grid: $('div', 'grid'), foot: $('footer') };
+    F.back.setAttribute('aria-label', 'Back'); F.back.onclick = () => finder(fback.pop(), true);
+    side.append($('small', '', 'Favourites'));
+    for (const [label, p] of SIDEBAR) {
+      const b = $('button'); b.innerHTML = ICON.folder; b.append(label); b.dataset.p = tilde(p); b.onclick = () => finder(p);
+      side.append(b);
+    }
+    tool.append(F.back, F.crumb); main.append(tool, F.grid, F.foot); box.append(side, main);
+    fback = [];
+    win('finder', 'Finder', box, 680, 400);
+  } else {
+    if (!isBack && tilde(parts) !== tilde(fpath)) fback.push(fpath);
+    win('finder');
+  }
+  fpath = parts;
+  const n = node(parts), ks = names(n, showHidden), label = (parts.at(-1) ?? 'eduardo').replace(/^\./, '');
+  document.querySelector('#finder .title').textContent = label;
+  F.back.disabled = !fback.length;
+  F.crumb.textContent = ['eduardo', ...parts].join('  ›  ').replace('.Trash', 'Trash');
+  F.grid.replaceChildren(...ks.map(k => { const b = icon(k, isDir(n[k]) ? 'folder' : 'file', () => show([...parts, k])); if (k[0] === '.') b.style.opacity = .5; return b; }));
+  F.foot.textContent = `${ks.length} item${ks.length === 1 ? '' : 's'}`;
+  for (const b of F.side.querySelectorAll('button')) b.classList.toggle('cur', b.dataset.p === tilde(parts));
+}
+function show(parts) {
+  const n = node(parts);
+  if (isDir(n)) return finder(parts);
+  const [head, ...rest] = n.split('\n'), doc = $('div', 'doc');
+  doc.append($('h1', '', head), fill($('div'), rest.join('\n').replace(/^\n/, '')));
+  win('f:' + tilde(parts), parts.at(-1), doc, 620, 420, '', 'TextEdit');
+}
+
+function aboutMac() {
+  const b = $('div', 'about');
+  b.innerHTML = `<h2>EduardoBook Pro</h2><button class="dim">Utrecht, late 2026</button>
+    <dl><dt>Chip</dt><dd>Go · Python · C# · TypeScript</dd>
+    <dt>Memory</dt><dd>MSc Computer Science (Milan) + MSc AI (Utrecht)</dd>
+    <dt>Startup disk</dt><dd>Utrecht, Netherlands</dd>
+    <dt>Uptime</dt><dd>shipping since October 2020</dd></dl><button>More Info…</button>`;
+  const sub = b.querySelector('.dim'), SUBS = ['Utrecht, late 2026', 'Version 26.11 (Build 26L1114)', 'One HTML file, zero dependencies'];
+  sub.onclick = () => sub.textContent = SUBS[(SUBS.indexOf(sub.textContent) + 1) % SUBS.length];
+  b.querySelector('dl + button').onclick = () => show(['about.txt']);
+  win('about-mac', 'About This Mac', b, 380, 310, '', 'System Settings');
+}
+
+const SHORTCUTS = [
+  ['⌘K', 'Spotlight: search files, apps and the whole CV'],
+  ['⌃⌥T', 'Terminal'], ['⌃⌥F', 'Finder'],
+  ['⌃⌥W', 'Close window'], ['⌃⌥M', 'Minimise to the Dock'],
+  ['⌃⌥←  ⌃⌥→', 'Tile left / right'], ['⌃⌥↑  ⌃⌥↓', 'Fill the screen / restore'],
+  ['⌃⌥U I J K', 'Tile to a corner'], ['⌃⌥Tab', 'Cycle windows'], ['⌃⌥L', 'Lock screen'],
+  ['Drag to an edge', 'Snap to a half, a corner, or the full screen'],
+  ['Double-click a title bar', 'Zoom'], ['Drag on the desktop', 'Select icons'], ['Right-click the desktop', 'Context menu'],
+  ['Tab  ↑ ↓  ⌃L  ⌃C', 'Terminal: complete, history, clear, cancel'],
+];
+function shortcuts() {
+  const dl = $('dl', 'keys');
+  for (const [k, d] of SHORTCUTS) dl.append($('dt', '', k), $('dd', '', d));
+  dl.append($('p', '', '⌃⌥ is Control + Option (Ctrl + Alt on Windows and Linux).'));
+  win('keys', 'Keyboard Shortcuts', dl, 500, 470, '', 'Help');
+}
+
+// ---- wallpaper: follows the visitor's local time unless overridden ----
+const WP = {
+  dawn: ['#6f7fe8', '#ffb38a', '#ff8fb1', '#8fd0ff'],
+  day: ['#2f80ed', '#6fd3ff', '#a78bfa', '#1e5fd8'],
+  dusk: ['#23307a', '#ff6f91', '#845ec2', '#2c73d2'],
+  night: ['#050816', '#1b2a6b', '#3b1d6e', '#0b3b6f'],
+};
+let wpName, wpAuto = true;
+function wallpaper(name) {
+  const h = new Date().getHours();
+  wpAuto = !name;
+  wpName = name || (h < 6 ? 'night' : h < 9 ? 'dawn' : h < 17 ? 'day' : h < 21 ? 'dusk' : 'night');
+  ['--base', '--a', '--b', '--c'].forEach((v, i) => document.body.style.setProperty(v, WP[wpName][i]));
+  return wpName;
+}
+const nextWallpaper = () => { const ks = Object.keys(WP); wallpaper(ks[(ks.indexOf(wpName) + 1) % ks.length]); };
+
+// ---- terminal ----
+const hist = []; let hi = 0, out, inp, ps, line, tb;
+let fg = null;   // a full-screen program holding the keyboard: { key(e), stop() }
+let trap = null; // a program reading whole lines instead of the shell (vim)
+const scroll = () => { if (tb) tb.scrollTop = tb.scrollHeight; };
+const print = (...parts) => { const d = $('div'); for (const p of parts) p instanceof Node ? d.append(p) : fill(d, p); out.append(d); scroll(); };
+const setPrompt = () => ps.replaceChildren(`eduardo@EduardoBook-Pro ${cwd.at(-1) ?? '~'} %`);
+const missing = (cmd, a) => `${cmd}: ${a}: No such file or directory`;
+const grab = prog => { fg = prog; line.style.opacity = 0; };
+function release() { fg?.stop?.(); fg = null; if (line) line.style.opacity = 1; inp?.focus({ preventScroll: true }); }
+const entry = (n, k) => $('span', isDir(n[k]) ? 'dir' : '', k + (isDir(n[k]) ? '/' : ''));
+
+const CMD = {
+  help: () =>
+`Files      ls [-la] [dir]   cd [dir]   cat <file>…   tree   pwd
+           open <path>      grep <text> [path]
+About me   whoami   neofetch   man eduardo   git log   htop   uptime
+Contact    mail   github   linkedin
+System     weather   wallpaper [dawn|day|dusk|night]   say <text>
+           shortcuts   lock   history   clear   reboot   exit
+
+Tab completes, ↑/↓ walks history, Ctrl+L clears. ⌘K opens Spotlight.
+Not everything is listed here. Poke around.`,
+
+  ls: ([a = '.'], flags) => {
+    const n = node(resolve(a));
+    if (n === undefined) return missing('ls', a);
+    if (!isDir(n)) return a;
+    const box = $('div');
+    for (const k of names(n, flags.includes('a'))) {
+      if (flags.includes('l')) {
+        const row = $('div', '', `${isDir(n[k]) ? 'drwxr-xr-x' : '-rw-r--r--'}  eduardo  ${String(isDir(n[k]) ? names(n[k]).length : n[k].length).padStart(5)}  `);
+        row.append(entry(n, k)); box.append(row);
+      } else box.append(entry(n, k), '   ');
+    }
+    return box;
+  },
+  cd: ([a = '~']) => { const p = resolve(a), n = node(p); if (n === undefined) return missing('cd', a); if (!isDir(n)) return `cd: not a directory: ${a}`; cwd = p; },
+  cat: args => args.length ? args.map(a => { const n = node(resolve(a)); return n === undefined ? missing('cat', a) : isDir(n) ? `cat: ${a}: Is a directory` : n; }).join('\n\n') : 'usage: cat <file>',
+  open: ([a = '.']) => { const p = resolve(a); if (node(p) === undefined) return missing('open', a); show(p); },
+  tree: ([a = '.']) => {
+    const n = node(resolve(a));
+    if (!isDir(n)) return n === undefined ? missing('tree', a) : a;
+    const draw = (n, pre) => names(n).map((k, i, ks) => {
+      const last = i === ks.length - 1;
+      return pre + (last ? '└── ' : '├── ') + k + (isDir(n[k]) ? '\n' + draw(n[k], pre + (last ? '    ' : '│   ')) : '');
+    }).join('\n');
+    return a + '\n' + draw(n, '');
+  },
+  grep: ([q, p = '.']) => {
+    if (!q) return 'usage: grep <text> [path]';
+    const base = resolve(p), root = node(base), box = $('div');
+    if (root === undefined) return missing('grep', p);
+    walk(root, base, (parts, text) => text.split('\n').forEach(l => {
+      if (!l.toLowerCase().includes(q.toLowerCase())) return;
+      const row = $('div'); row.append($('span', 'dir', tilde(parts) + ': '), l.trim()); box.append(row);
+    }));
+    return box.childElementCount ? box : `grep: nothing matches "${q}"`;
+  },
+  pwd: () => '/Users/eduardo' + tilde(cwd).slice(1),
+  whoami: () => 'eduardo — software engineer in Utrecht',
+  date: () => new Date().toString(),
+  echo: (_, __, raw) => raw,
+  clear: () => { out.textContent = ''; },
+  history: () => hist.map((h, i) => `${String(i + 1).padStart(3)}  ${h}`).join('\n'),
+  uptime: () => { const m = (new Date().getFullYear() - 2020) * 12 + new Date().getMonth() - 9; return `up ${m / 12 | 0} years, ${m % 12} months since the first production deploy (Oct 2020)`; },
+  neofetch: () =>
+`eduardo@EduardoBook-Pro
+-----------------------
+Role       Software Engineer
+Location   Utrecht, Netherlands
+Studying   MSc Computer Science (UniMi), MSc AI (Utrecht University)
+Previously CERN, Tesla, Gemini Security, Robotics Europe
+Stack      Go, Python, C#, TypeScript, Kubernetes
+Contact    ${MAIL}`,
+  man: () =>
+`EDUARDO(1)                 User Commands                 EDUARDO(1)
+
+NAME
+    eduardo - software engineer, backend and applied AI
+
+SYNOPSIS
+    eduardo [--backend] [--distributed] [--ai] problem...
+
+DESCRIPTION
+    Takes a vaguely described problem and returns a running
+    service, with tests, a deployment and someone who will pick
+    up when it breaks.
+
+OPTIONS
+    --backend       Go, Python, C#. Redis and Postgres underneath.
+    --distributed   Kubernetes, Helm, queues, caches.
+    --ai            Retrieval, agents, and the evaluation that
+                    tells you whether either of them works.
+
+BUGS
+    Will suggest rewriting it in Go.
+
+SEE ALSO
+    cat about.txt, ls work, git log`,
+  git: ([sub]) => sub === 'log' ?
+`a1f9c3e (HEAD -> main) feat: start MSc in AI at Utrecht University
+7d2e8b0 feat(cern): RAG agent and evaluation framework for FCC docs
+4c61a9f feat(tesla): service center tooling, multi-invoicing
+e03b7d2 feat(gemini): founding engineer, request labelling in Go
+9b5f1c4 feat(unimi): BSc thesis, ultrasound ML from 30% to 98%
+2f8a6e1 feat(robotics-europe): CTO, backend rewrite Python -> Go
+0000001 init: hello, world` : `git: only 'log' works here. The real repos: ${GH}`,
+  top: htop,
+  weather: async () => {
+    if (!wifiOn) return 'weather: Wi-Fi is off';
+    try {
+      const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=52.09&longitude=5.12&current=temperature_2m,weather_code,wind_speed_10m');
+      const c = (await r.json()).current, w = c.weather_code;
+      const sky = w === 0 ? 'clear sky' : w < 4 ? 'cloudy' : w < 50 ? 'fog' : w < 70 ? 'rain' : w < 80 ? 'snow' : w < 95 ? 'showers' : 'thunderstorm';
+      return `Utrecht, right now: ${Math.round(c.temperature_2m)}°C, ${sky}, wind ${Math.round(c.wind_speed_10m)} km/h.${w >= 50 ? ' Still cycling to class.' : ''}`;
+    } catch { return 'weather: can\'t reach the sky right now'; }
+  },
+  wallpaper: ([a]) => a === 'auto' || Object.hasOwn(WP, a) ? `wallpaper: ${wallpaper(a === 'auto' ? '' : a)}` : `usage: wallpaper <${Object.keys(WP).join('|')}|auto>`,
+  say: (_, __, raw) => { speechSynthesis.speak(new SpeechSynthesisUtterance(raw || 'Hello from Utrecht')); },
+  cowsay: (_, __, raw) => { const t = raw || 'moo. hire him.'; return ` ${'_'.repeat(t.length + 2)}\n< ${t} >\n ${'-'.repeat(t.length + 2)}\n        \\   ^__^\n         \\  (oo)\\_______\n            (__)\\       )\\/\\\n                ||----w |\n                ||     ||`; },
+  mail: () => { location.href = 'mailto:' + MAIL; return 'Opening your mail app…'; },
+  github: () => { window.open(GH, '_blank', 'noopener'); return GH; },
+  linkedin: () => { window.open(IN, '_blank', 'noopener'); return IN; },
+  sudo: (_, __, raw) => /\brm\b/.test(raw) ? panic() : raw === 'make me a sandwich' ? 'Okay.' : 'eduardo is not in the sudoers file. This incident will be reported.',
+  make: (_, __, raw) => raw === 'me a sandwich' ? 'What? Make it yourself.' : `make: *** No rule to make target '${raw || 'all'}'.  Stop.`,
+  xyzzy: () => 'Nothing happens.',
+  uname: (_, flags) => flags.includes('a') ? 'Darwin EduardoBook-Pro 25.1.0 Darwin Kernel Version 25.1.0 arm64' : 'Darwin',
+  screensaver: () => { screensaver(); },
+  rm: () => 'rm: permission denied. (sudo might work. might.)',
+  nano: () => 'nano: not installed. This is a vim household.',
+  emacs: () => 'emacs: not installed. This is a vim household.',
+  vim: () => {
+    let n = 0;
+    print('~\n~\n~              VIM - Vi IMproved\n~\n~      you are now inside vim. good luck.\n~\n~');
+    trap = s => {
+      if (/^:(q|q!|wq|x)$/.test(s)) { trap = null; return print(n ? `You got out after ${n} wrong attempt${n > 1 ? 's' : ''}. Put it on your CV.` : 'Out on the first try. Respect.'); }
+      print([`E492: Not an editor command: ${s}`, 'Still in vim. Hint: it starts with a colon.', 'Type  :q  and press Enter. I believe in you.'][Math.min(n++, 2)]);
+    };
+  },
+  snake, matrix, sl, htop,
+  shortcuts: () => { shortcuts(); },
+  lock: () => { lock(); },
+  reboot: () => { reboot(); },
+  exit: () => { close(document.getElementById('term')); },
+};
+
+function snake() {
+  const W = 24, H = 12, scr = $('pre');
+  let s = [{ x: 6, y: 6 }, { x: 5, y: 6 }, { x: 4, y: 6 }], d = [1, 0], next = d, food, score = 0;
+  const hit = (x, y) => s.some(c => c.x === x && c.y === y);
+  const put = () => { do food = { x: Math.random() * W | 0, y: Math.random() * H | 0 }; while (hit(food.x, food.y)); };
+  const draw = () => {
+    let t = `snake · score ${score} · arrows or WASD, q quits\n┌${'──'.repeat(W)}┐\n`;
+    for (let y = 0; y < H; y++) { t += '│'; for (let x = 0; x < W; x++) t += hit(x, y) ? '██' : food.x === x && food.y === y ? '()' : '  '; t += '│\n'; }
+    scr.textContent = t + `└${'──'.repeat(W)}┘`;
+  };
+  const end = msg => { release(); print(msg); };
+  const timer = setInterval(() => {
+    d = next;
+    const h = { x: s[0].x + d[0], y: s[0].y + d[1] };
+    if (h.x < 0 || h.y < 0 || h.x >= W || h.y >= H || hit(h.x, h.y)) return end(`game over. score ${score}.`);
+    s.unshift(h);
+    if (h.x === food.x && h.y === food.y) { score++; put(); } else s.pop();
+    draw();
+  }, 120);
+  put(); draw(); out.append(scr); scroll();
+  grab({
+    key(e) {
+      const k = { ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1], ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0] }[e.key];
+      if (k && (k[0] !== -d[0] || k[1] !== -d[1])) next = k; // no U-turns into yourself
+      else if (e.key === 'q' || e.key === 'Escape') end(`quit. score ${score}.`);
+    },
+    stop: () => clearInterval(timer),
+  });
+}
+
+// htop: a live view of this desktop. Every open window is a process and k (or F9) kills it.
+// It runs on the terminal's alternate screen, so quitting brings the scrollback back, like a real terminal.
+function htop() {
+  const scr = $('pre', 'htop'), cores = clamp(navigator.hardwareConcurrency || 8, 2, 12), memTotal = (navigator.deviceMemory || 8) * 1024;
+  const load = Array.from({ length: cores }, () => 4 + Math.random() * 20), me = 900 + (Math.random() * 8000 | 0);
+  const SYS = [[0, 'root', 'kernel_task', 412, 4.1], [1, 'root', '/sbin/launchd', 21, .1], [143, '_windowserver', 'WindowServer', 187, 2.3],
+    [388, 'eduardo', 'loginwindow', 6, .4], [611, 'eduardo', '-zsh', .3, 0]];
+  const cpuTime = new Map(SYS.map(r => [r[0], r[3]])), memPct = new Map(SYS.map(r => [r[0], r[4]]));
+  let sel = 0, rows = [], msg = '', mem = memTotal * .4;
+  const sp = (cls, t) => $('span', cls, t);
+  const meter = (label, frac, text) => { const n = Math.round(clamp(frac, 0, 1) * 18); return [label.padStart(3) + '[', sp('g', '|'.repeat(n)), ' '.repeat(18 - n) + text.padStart(8) + ']']; };
+  const mmss = s => `${s / 60 | 0}:${(s % 60).toFixed(2).padStart(5, '0')}`;
+  const hms = ms => { const s = ms / 1000 | 0; return `${String(s / 3600 | 0).padStart(2, '0')}:${String(s / 60 % 60 | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
+
+  const tick = () => {
+    load.forEach((v, i) => load[i] = clamp(v + (Math.random() - .5) * 14, 1, 96));
+    mem = clamp(mem + (Math.random() - .5) * memTotal * .01, memTotal * .3, memTotal * .55);
+    rows = [
+      ...SYS.map(([pid, user, cmd]) => ({ pid, user, cmd })),
+      ...[...desk.querySelectorAll('.win:not(.out)')].map(w => ({ pid: w._pid ??= 1000 + (Math.random() * 9000 | 0), user: 'eduardo', cmd: `${w.dataset.app}: ${w.querySelector('.title').textContent}`, win: w })),
+      { pid: me, user: 'eduardo', cmd: 'htop' },
+    ];
+    for (const r of rows) {
+      r.cpu = r.pid === 0 ? 2 + Math.random() * 6 : r.pid === 143 ? 3 + Math.random() * 9 : r.win ? Math.random() * 3 : Math.random() * .8;
+      cpuTime.set(r.pid, (cpuTime.get(r.pid) ?? 0) + r.cpu / 100);
+      if (!memPct.has(r.pid)) memPct.set(r.pid, r.win ? .6 + Math.random() * 1.2 : .1);
+    }
+    render();
+  };
+  const render = () => {
+    sel = clamp(sel, 0, rows.length - 1);
+    const buf = [], ln = (...parts) => buf.push(...parts, '\n'), half = Math.ceil(cores / 2);
+    const cpu = i => meter(String(i), load[i] / 100, load[i].toFixed(1) + '%');
+    for (let i = 0; i < half; i++) ln(...cpu(i), ...(i + half < cores ? ['   ', ...cpu(i + half)] : []));
+    const avg = load.reduce((a, b) => a + b) / 100;
+    ln(...meter('Mem', mem / memTotal, `${(mem / 1024).toFixed(1)}G/${memTotal / 1024}G`), `   Tasks: ${rows.length}, 1 running`);
+    ln(' '.repeat(34) + `Load average: ${avg.toFixed(2)} ${(avg * .92).toFixed(2)} ${(avg * .85).toFixed(2)}`);
+    ln(' '.repeat(34) + `Uptime: ${hms(performance.now())}`);
+    ln();
+    ln(sp('hd', '  PID USER           CPU% MEM%    TIME+  Command'.padEnd(78)));
+    rows.forEach((r, i) => {
+      const t = `${String(r.pid).padStart(5)} ${r.user.padEnd(14)}${r.cpu.toFixed(1).padStart(5)}${memPct.get(r.pid).toFixed(1).padStart(5)}${mmss(cpuTime.get(r.pid)).padStart(9)}  ${r.cmd}`.slice(0, 78).padEnd(78);
+      ln(i === sel ? sp('hl', t) : t);
+    });
+    ln(); ln(msg ? sp('warn', msg) : '');
+    ln(sp('fk', 'F9'), 'Kill  ', sp('fk', 'F10'), 'Quit  ', sp('fk', '↑↓'), 'Select      k and q work too');
+    scr.replaceChildren(...buf);
+  };
+
+  out.hidden = true; tb.insertBefore(scr, line); tick();
+  const timer = setInterval(tick, 1000);
+  grab({
+    key(e) {
+      if (e.key === 'q' || e.key === 'F10' || e.key === 'Escape') return release();
+      if (e.key === 'ArrowDown') sel++;
+      else if (e.key === 'ArrowUp') sel--;
+      else if (e.key === 'k' || e.key === 'F9') {
+        const r = rows[sel];
+        if (r.pid === me) return release();
+        if (r.pid === 611) return close(document.getElementById('term')); // killing the shell closes its window
+        if (r.win) { msg = `Sent SIGTERM to ${r.pid}`; close(r.win); return setTimeout(tick, 200); }
+        msg = `kill ${r.pid}: Operation not permitted`;
+      } else return;
+      render();
+    },
+    stop: () => { clearInterval(timer); scr.remove(); out.hidden = false; scroll(); },
+  });
+}
+
+// the classic punishment for mistyping a command
+let train = null;
+function sl() {
+  const TRAIN = [
+    '      (  ) (@@) ( )  (@)  ()', '    (@@@)', '  (    )',
+    '  ====        ________      ___________', ' _D _|  |____/        |__I_I_____===__|', '  |(_)---  |  H________| |   |       =|',
+    '  /     |  |  H  |  |    |   |        |', ' |      |  |  H  |__-----------------|', ' | ______|__H__/__|_____/[][]~|______|',
+    ' |/ |   |-----------I_____I [][] []  D', '_/ =| o |=-O=====O=====O=====O  |____|', ' |/-=|___|=    ||    ||    ||   |_____/',
+  ], COLS = 76;
+  if (train?.isConnected) { out.append(train); return scroll(); } // already running: it just follows you down
+  const scr = train = $('pre');
+  let x = COLS;
+  const draw = () => scr.textContent = TRAIN.map(l => (x >= 0 ? ' '.repeat(x) + l : l.slice(-x)).slice(0, COLS)).join('\n');
+  scr.style.color = 'inherit'; draw(); out.append(scr); scroll();
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  // It never stops: it loops until `clear` (or closing the window) takes it off the screen.
+  const timer = setInterval(() => {
+    if (!scr.isConnected) return clearInterval(timer);
+    if ((x -= 2) < -44) x = COLS;
+    draw();
+  }, 38);
+}
+
+function matrix() {
+  const c = $('canvas', 'rain'), g = c.getContext('2d');
+  document.getElementById('term').append(c);
+  c.width = c.clientWidth; c.height = c.clientHeight;
+  const cols = Array(Math.ceil(c.width / 14)).fill(0);
+  let raf, last = 0;
+  const step = t => {
+    raf = requestAnimationFrame(step);
+    if (t - last < 50) return; last = t;
+    g.fillStyle = 'rgba(8, 10, 12, .12)'; g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = '#4ade80'; g.font = '14px monospace';
+    cols.forEach((y, i) => { g.fillText(String.fromCharCode(0x30a0 + Math.random() * 96), i * 14, y); cols[i] = y > c.height + Math.random() * 4000 ? 0 : y + 16; });
+  };
+  raf = requestAnimationFrame(step);
+  grab({ key: release, stop: () => { cancelAnimationFrame(raf); c.remove(); } });
+  c.onclick = release;
+}
+
+// A full-screen overlay that goes away on the next key or click (not the one that summoned it).
+function curtain(el, then) {
+  closeMenus();
+  document.body.append(el);
+  setTimeout(() => {
+    const go = e => { e?.preventDefault?.(); e?.stopPropagation?.(); removeEventListener('keydown', go, true); el.classList.add('bye'); setTimeout(() => el.remove(), 280); then?.(); };
+    addEventListener('keydown', go, true); el.onclick = go;
+  }, 400);
+}
+function screensaver() {
+  if (document.querySelector('.saver, .lock, .panic')) return;
+  const s = $('div', 'saver'), t = $('b'); s.append(t);
+  let x = 60 + Math.random() * 200, y = 60 + Math.random() * 200, vx = 1.7, vy = 1.3, hue = 210, raf;
+  const step = () => {
+    raf = requestAnimationFrame(step);
+    t.textContent = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const W = innerWidth - t.offsetWidth, H = innerHeight - t.offsetHeight;
+    x += vx; y += vy;
+    if (x < 0 || x > W) { vx = -vx; x = clamp(x, 0, W); hue = (hue + 67) % 360; } // new colour on every bounce
+    if (y < 0 || y > H) { vy = -vy; y = clamp(y, 0, H); hue = (hue + 67) % 360; }
+    t.style.transform = `translate(${x}px, ${y}px)`; t.style.color = `hsl(${hue} 90% 66%)`;
+  };
+  curtain(s, () => cancelAnimationFrame(raf)); step();
+  setTimeout(() => s.onpointermove = () => s.onclick?.(), 900); // moving the mouse wakes it, once it has settled
+}
+let idleT, cornerT;
+const awake = () => { clearTimeout(idleT); idleT = setTimeout(screensaver, 120000); };
+for (const ev of ['pointermove', 'pointerdown', 'keydown']) addEventListener(ev, awake, true);
+addEventListener('pointermove', e => { // hot corner
+  const inCorner = e.clientX >= innerWidth - 3 && e.clientY >= innerHeight - 3;
+  if (!inCorner) { clearTimeout(cornerT); cornerT = null; } else cornerT ??= setTimeout(screensaver, 500);
+});
+awake();
+
+// shake the pointer and it grows so you can find it
+let lastX = 0, lastDir = 0, flips = [], bigT;
+addEventListener('pointermove', e => {
+  const dx = e.clientX - lastX; lastX = e.clientX;
+  if (Math.abs(dx) < 6 || Math.sign(dx) === lastDir) return;
+  lastDir = Math.sign(dx);
+  const now = performance.now(); flips = [...flips.filter(t => now - t < 650), now];
+  if (flips.length < 5) return;
+  flips = []; document.documentElement.classList.add('bigcursor');
+  clearTimeout(bigT); bigT = setTimeout(() => document.documentElement.classList.remove('bigcursor'), 900);
+});
+
+function panic() {
+  curtain($('div', 'panic',
+`panic(cpu 0 caller 0xfffffe0012ab34c0): "rm -rf /" issued by a visitor with root access
+
+Deleting /Users/eduardo/work .......... done
+Deleting /Users/eduardo/projects ...... done
+Deleting production database .......... done
+
+Just kidding. Nothing was deleted and the CV is fine.
+Press any key to restart.`), reboot);
+}
+function lock() {
+  const d = new Date(), l = $('div', 'lock');
+  l.append($('span', '', d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })),
+    $('b', '', d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })), $('small', '', 'Click or press any key to unlock'));
+  curtain(l);
+}
+
+// Boot: verbose kernel log, then just the progress bar, then the desktop. Click to skip.
+const BOOT = [
+  'EFI boot loader 2.1',
+  'Loading kernel cache file \'System/Library/KernelCollections/BootKernelExtensions.kc\'...',
+  'root device uuid is \'5C1D0F2A-88B4-4E0B-9C6E-3F27A1D4B7E9\'',
+  'Darwin Kernel Version 25.1.0: root:xnu-12377.41.6~2/RELEASE_ARM64_T8122',
+  'vm_page_bootstrap: 3961214 free pages, 147330 wired pages',
+  'standard timeslicing quantum is 10000 us',
+  'mig_table_max_displ = 53',
+  'IOKit: starting matching for platform expert',
+  'AppleKeyStore starting (BUILT: Oct 21 2026 22:14:05)',
+  'apfs_module_start:3403: load: com.apple.filesystems.apfs, v2632.40.17',
+  'nx_kernel_mount:1359: disk3: initializing cache w/hash_size 131072',
+  'apfs_vfsop_mount:2318: disk3s1 mounted as /',
+  'Waiting for DSMOS...',
+  'IOGraphics: display online, 3024x1964',
+  'en0: link up, 866 Mbps',
+  'launchd: starting loginwindow',
+  'loginwindow: starting WindowServer',
+];
+const bootEl = document.getElementById('boot'), bootLog = bootEl.querySelector('pre');
+let bootTimers = [];
+function boot(restart) {
+  bootTimers.forEach(clearTimeout); bootTimers = [];
+  bootEl.className = restart ? 'fade' : ''; bootLog.textContent = '';
+  document.body.append(bootEl);
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { bootEl.remove(); return 0; }
+  const at = (ms, fn) => bootTimers.push(setTimeout(fn, ms));
+  let t = restart ? 1100 : 250; // a restart first fades the desktop to black and sits there a moment
+  for (const l of BOOT) { at(t, () => bootLog.textContent += l + '\n'); t += Math.random() < .2 ? 260 : 25 + Math.random() * 70; } // bursts and stalls, like a real log
+  at(t + 300, () => bootEl.className = 'loading');
+  at(t + 1500, () => bootEl.className = 'loading done');
+  at(t + 1900, () => bootEl.remove());
+  return t + 1900;
+}
+bootEl.onclick = () => { bootTimers.forEach(clearTimeout); bootEl.remove(); };
+function reboot() {
+  for (const w of desk.querySelectorAll('.win')) close(w);
+  cwd = [];
+  setTimeout(terminal, boot(true) - 600); // the desktop comes back empty, then Terminal reopens
+}
+
+async function run(raw) {
+  print(ps.textContent + ' ' + raw);
+  const s = raw.trim();
+  if (trap) trap(s);
+  else if (s) {
+    hist.push(s);
+    const [c, ...rest] = s.split(/\s+/);
+    const args = rest.filter(a => a[0] !== '-'), flags = rest.filter(a => a[0] === '-').join('');
+    const known = Object.hasOwn(CMD, c), res = known ? await CMD[c](args, flags, rest.join(' ')) : `zsh: command not found: ${c}`;
+    if (res) print(res);
+    if (!known) sl();
+  }
+  hi = hist.length;
+  setPrompt(); scroll();
+}
+
+function complete() {
+  const v = inp.value, i = v.lastIndexOf(' ') + 1, tok = v.slice(i);
+  let pool, base = '';
+  if (i === 0) pool = Object.keys(CMD);
+  else {
+    base = tok.slice(0, tok.lastIndexOf('/') + 1);
+    const n = node(resolve(base || '.')), frag = tok.slice(base.length);
+    pool = isDir(n) ? names(n, frag[0] === '.').map(k => isDir(n[k]) ? k + '/' : k) : [];
+  }
+  const m = pool.filter(k => k.startsWith(tok.slice(base.length)));
+  if (m.length === 1) inp.value = v.slice(0, i) + base + m[0];
+  else if (m.length > 1) print(m.join('   '));
+}
+
+function terminal() {
+  if (!document.getElementById('term')) {
+    tb = $('div', 'term'); line = $('div', 'line'); out = $('div'); ps = $('span'); inp = $('input');
+    Object.assign(inp, { spellcheck: false, autocomplete: 'off', autocapitalize: 'off', ariaLabel: 'Terminal input' });
+    setPrompt(); line.append(ps, inp); tb.append(out, line);
+    inp.onkeydown = e => {
+      if (e.altKey && e.ctrlKey || e.metaKey) return; // desktop shortcuts
+      if (fg) { e.preventDefault(); return fg.key(e); }
+      if (e.key === 'Enter') { run(inp.value); inp.value = ''; }
+      else if (e.key === 'Tab') { e.preventDefault(); complete(); }
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        hi = Math.max(0, Math.min(hist.length, hi + (e.key === 'ArrowUp' ? -1 : 1)));
+        inp.value = hist[hi] ?? '';
+      } else if (e.key === 'l' && e.ctrlKey) { e.preventDefault(); CMD.clear(); }
+      else if (e.key === 'c' && e.ctrlKey) { print(ps.textContent + ' ' + inp.value + '^C'); inp.value = ''; trap = null; }
+    };
+    // Click anywhere to type, unless the user is selecting text to copy.
+    tb.onclick = () => { if (!String(getSelection())) inp.focus(); };
+    win('term', 'eduardo — -zsh — 80×24', tb, 680, 430, 'dark', 'Terminal');
+    print($('span', 'dim', `Last login: ${new Date().toString().slice(0, 24)} on ttys001\n`), "This terminal is real. Type 'help' and press Enter.\n");
+  }
+  win('term');
+  if (!coarse) inp.focus({ preventScroll: true }); // don't pop the keyboard on phones
+}
+
+// ---- menus ----
+let ctx = null;
+function closeMenus() {
+  for (const d of menubar.querySelectorAll('details[open]')) d.open = false;
+  ctx?.remove(); ctx = null;
+}
+function pop(items) {
+  const d = $('div', 'pop glass');
+  for (const it of items) {
+    if (!it) { d.append($('hr')); continue; }
+    const [label, fn, key] = it, b = $('button', '', label);
+    if (key) b.append($('kbd', '', key));
+    b.onclick = () => { closeMenus(); fn(); };
+    d.append(b);
+  }
+  return d;
+}
+function menu(title, items, cls = '') {
+  const d = $('details', cls), s = $('summary');
+  title.startsWith('<') ? s.innerHTML = title : s.textContent = title;
+  d.append(s, pop(items));
+  return wire(d, s);
+}
+function wire(d, s, onOpen) {
+  // once one menu is open, sliding across the bar opens the others, like the real thing
+  s.onpointerenter = () => { if (menubar.querySelector('details[open]') && !d.open) { closeMenus(); d.open = true; } };
+  d.ontoggle = () => {
+    if (!d.open) return;
+    for (const o of menubar.querySelectorAll('details[open]')) if (o !== d) o.open = false;
+    onOpen?.();
+  };
+  return d;
+}
+
+// ---- status items: each is a panel rebuilt every time it opens, so what it shows is live ----
+function panel(html, label, build) {
+  const d = $('details', 'right'), s = $('summary'), p = $('div', 'panel glass');
+  s.innerHTML = html; s.setAttribute('aria-label', label);
+  d.append(s, p);
+  return wire(d, s, () => build(p));
+}
+const row = (label, right = '') => { const r = $('div', 'row'); r.append($('span', '', label), right instanceof Node ? right : $('span', '', right)); return r; };
+const li = (label, fn, check) => { const b = $('button', 'li'); b.append($('span', 'ck', check ? '✓' : ''), label); b.onclick = () => { closeMenus(); fn(); }; return b; };
+const sw = (on, fn) => { const b = $('button', 'sw'); b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', on); b.onclick = () => fn(!on); return b; };
+
+async function batteryPanel(p) {
+  const b = await navigator.getBattery?.().catch(() => null);
+  p.replaceChildren(row('Battery', b ? Math.round(b.level * 100) + '%' : 'Not available'));
+}
+
+// Wi-Fi shows the visitor's real connection, as far as the browser exposes it. Off makes the desktop behave offline.
+let wifiOn = true;
+function setWifi(v) { wifiOn = v; wifiItem.querySelector('summary').style.opacity = v ? 1 : .4; }
+function wifiPanel(p) {
+  p.replaceChildren(row('Wi-Fi', sw(wifiOn, v => { setWifi(v); wifiPanel(p); })));
+  if (!wifiOn) return;
+  const c = navigator.connection, info = (k, v) => { const r = row(k, v); r.style.fontWeight = 400; return r; };
+  p.append($('hr'), info('Status', navigator.onLine ? 'Connected' : 'Offline'));
+  if (c?.downlink) p.append(info('Speed', `${c.downlink} Mb/s`));
+  if (c?.rtt) p.append(info('Latency', `${c.rtt} ms`));
+}
+
+let bright = 1;
+const dim = $('div'); dim.id = 'dim'; document.body.append(dim);
+function controlPanel(p) {
+  const again = () => controlPanel(p);
+  const tile = (label, glyph, on, fn) => {
+    const b = $('button', 'tile'), i = $('i'); i.innerHTML = glyph;
+    b.setAttribute('aria-pressed', on); b.append(i, label); b.onclick = () => { fn(); again(); };
+    return b;
+  };
+  const tiles = $('div', 'tiles'), swatches = $('div', 'swatches'), range = $('input');
+  tiles.append(
+    tile('Wi-Fi', ICON.wifi, wifiOn, () => setWifi(!wifiOn)),
+    tile('Dark Mode', '☾', document.body.classList.contains('dm'), () => document.body.classList.toggle('dm')),
+    tile('Party Mode', '♪', document.body.classList.contains('party'), () => document.body.classList.toggle('party')),
+    tile('Lock Screen', '⏻', false, lock),
+  );
+  Object.assign(range, { type: 'range', min: .3, max: 1, step: .01, value: bright, ariaLabel: 'Display brightness' });
+  range.oninput = () => { bright = +range.value; dim.style.opacity = (1 - bright) * .9; };
+  for (const name of ['auto', ...Object.keys(WP)]) {
+    const b = $('button', (wpAuto ? 'auto' : wpName) === name ? 'cur' : '', name === 'auto' ? 'A' : '');
+    const [, a, b2, c] = WP[name] ?? WP.dusk;
+    b.style.background = name === 'auto' ? '#8e8e93' : `linear-gradient(135deg, ${a}, ${b2}, ${c})`;
+    b.setAttribute('aria-label', `Wallpaper: ${name}`); b.title = name;
+    b.onclick = () => { wallpaper(name === 'auto' ? '' : name); again(); };
+    swatches.append(b);
+  }
+  p.replaceChildren(tiles, $('small', '', 'Display'), range, $('small', '', 'Wallpaper'), swatches);
+}
+
+function calendarPanel(p) {
+  const d = new Date(), y = d.getFullYear(), m = d.getMonth(), cal = $('div', 'cal');
+  for (const w of 'MTWTFSS') cal.append($('b', '', w));
+  for (let i = (new Date(y, m, 1).getDay() + 6) % 7; i > 0; i--) cal.append($('span')); // Monday-first offset
+  for (let i = 1, n = new Date(y, m + 1, 0).getDate(); i <= n; i++) cal.append($('span', i === d.getDate() ? 'today' : '', i));
+  p.replaceChildren(row(d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })), cal, $('hr'),
+    $('small', '', `Eduardo's time in Utrecht: ${d.toLocaleTimeString('en-GB', { timeZone: 'Europe/Amsterdam', hour: '2-digit', minute: '2-digit' })}`));
+}
+const onActive = fn => () => { const a = active(); if (a) fn(a); };
+const go = url => () => window.open(url, '_blank', 'noopener');
+const email = () => { location.href = 'mailto:' + MAIL; };
+
+const spotBtn = $('button', 'status'); spotBtn.innerHTML = ICON.search; spotBtn.id = 'spotBtn'; spotBtn.setAttribute('aria-label', 'Spotlight Search'); spotBtn.onclick = () => spotlight();
+const wifiItem = panel(ICON.wifi, 'Wi-Fi', wifiPanel);
+const calItem = panel('', '', calendarPanel), clock = calItem.querySelector('summary'); clock.id = 'clock'; clock.removeAttribute('aria-label');
+
+menubar.append(
+  menu('⌘', [['About This Mac', aboutMac], null, ['Lock Screen', lock, '⌃⌥L'], ['Restart…', reboot]], 'sys'),
+  appName,
+  menu('File', [['New Terminal Window', terminal, '⌃⌥T'], ['New Finder Window', () => finder([]), '⌃⌥F'], null, ['Close Window', onActive(close), '⌃⌥W']]),
+  menu('Go', [['Home', () => finder([])], ['Work', () => finder(['work'])], ['Projects', () => finder(['projects'])], ['Trash', () => finder(['.Trash'])], null,
+    ['GitHub', go(GH)], ['LinkedIn', go(IN)], ['Email Eduardo', email]]),
+  menu('Window', [['Minimise', onActive(minimise), '⌃⌥M'], ['Zoom', onActive(zoom), '⌃⌥↑'], null,
+    ['Tile Left', onActive(a => snap(a, 'left')), '⌃⌥←'], ['Tile Right', onActive(a => snap(a, 'right')), '⌃⌥→'], ['Restore', onActive(unsnap), '⌃⌥↓'], null,
+    ['Cycle Windows', cycle, '⌃⌥Tab']]),
+  menu('Help', [['Keyboard Shortcuts', shortcuts], ['Spotlight Search', () => spotlight(), '⌘K'], null, ['Terminal Help', () => { terminal(); run('help'); }]]),
+  $('span', 'gap'), panel(ICON.battery, 'Battery', batteryPanel), wifiItem, spotBtn, panel(ICON.control, 'Control Centre', controlPanel), calItem,
+);
+menubar.querySelector('.sys summary').setAttribute('aria-label', 'System menu');
+navigator.getBattery?.().then(b => { const set = () => document.getElementById('batt').setAttribute('width', 3 + 18 * b.level); set(); b.onlevelchange = set; }).catch(() => {});
+
+const tick = () => { const d = new Date(); clock.textContent = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '') + '  ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); };
+tick(); setInterval(tick, 15000);
+
+function cycle() { const ws = wins().sort((a, b) => a.style.zIndex - b.style.zIndex); if (ws.length) front(ws[0]); }
+
+// ---- desktop: icons, rubber-band selection, context menu ----
+for (const k of names(FS)) icons.append(icon(k, isDir(FS[k]) ? 'folder' : 'file', () => show([k])));
+const bare = e => e.target === desk || e.target === icons;
+
+desk.addEventListener('pointerdown', e => {
+  if (!bare(e) || e.button) return;
+  select([]); document.activeElement?.blur();
+  const x0 = e.clientX, y0 = e.clientY, top = desk.offsetTop, box = $('div', 'marquee');
+  desk.append(box); desk.setPointerCapture(e.pointerId);
+  desk.onpointermove = m => {
+    const l = Math.min(x0, m.clientX), t = Math.min(y0, m.clientY), w = Math.abs(m.clientX - x0), h = Math.abs(m.clientY - y0);
+    Object.assign(box.style, { left: l + 'px', top: t - top + 'px', width: w + 'px', height: h + 'px' });
+    for (const ic of icons.children) { const r = ic.getBoundingClientRect(); ic.classList.toggle('sel', r.left < l + w && r.right > l && r.top < t + h && r.bottom > t); }
+  };
+  desk.onpointerup = () => { desk.onpointermove = desk.onpointerup = null; box.remove(); };
+});
+desk.addEventListener('contextmenu', e => {
+  if (!bare(e)) return;
+  e.preventDefault(); closeMenus();
+  ctx = pop([['New Terminal Window', terminal], ['New Finder Window', () => finder([])], null, ['Change Wallpaper', nextWallpaper], ['Keyboard Shortcuts', shortcuts], null, ['Lock Screen', lock], ['About This Mac', aboutMac]]);
+  ctx.classList.add('ctx');
+  Object.assign(ctx.style, { left: Math.min(e.clientX, innerWidth - 244) + 'px', top: Math.min(e.clientY, innerHeight - 250) + 'px' });
+  document.body.append(ctx);
+});
+
+// ---- dock ----
+const dockBtn = {};
+for (const [label, bg, html, fn, cls] of [
+  ['Finder', 'linear-gradient(#6cc0ff, #1f6fe0)', ICON.folder, () => finder(document.getElementById('finder') ? fpath : [], true)],
+  ['Terminal', '#1c1c1e', '&gt;_', terminal, 'term-tile'],
+  ['Mail', 'linear-gradient(#5ab8ff, #1a66e8)', ICON.mail, email],
+  ['GitHub', 'linear-gradient(#4a4f5a, #16181d)', ICON.branch, go(GH)],
+  ['LinkedIn', 'linear-gradient(#3d8fe0, #0a55b0)', 'in', go(IN)],
+  [], // divider
+  ['Trash', 'linear-gradient(#c3c7d2, #868b9a)', ICON.trash, () => finder(['.Trash'])],
+]) {
+  if (!label) { dock.append($('hr')); continue; }
+  const b = dockBtn[label] = $('button', cls); b.innerHTML = html; b.style.background = bg; b.setAttribute('aria-label', label); b.onclick = fn;
+  dock.append(b);
+}
+// the little "running" dots under Finder and Terminal
+function sync() {
+  dockBtn.Finder?.classList.toggle('on', !!document.getElementById('finder'));
+  dockBtn.Terminal?.classList.toggle('on', !!document.getElementById('term'));
+}
+// magnification: icons grow with the cursor's distance from their resting centre
+let centres = null;
+dock.onpointerenter = () => centres = [...dock.querySelectorAll('button')].map(b => { const r = b.getBoundingClientRect(); return [b, r.left + r.width / 2]; });
+dock.onpointermove = e => { if (!coarse) for (const [b, c] of centres ?? []) b.style.setProperty('--s', 1 + .5 * Math.max(0, 1 - Math.abs(e.clientX - c) / 130)); };
+dock.onpointerleave = () => { for (const b of dock.querySelectorAll('button')) b.style.setProperty('--s', 1); centres = null; };
+
+// ---- Spotlight ----
+const spot = document.getElementById('spot'), sIn = spot.querySelector('input'), sRes = spot.querySelector('div');
+const INDEX = [
+  ['Terminal', 'Application', terminal], ['Finder', 'Application', () => finder([])], ['About This Mac', 'System', aboutMac],
+  ['Keyboard Shortcuts', 'Help', shortcuts], ['Lock Screen', 'System', lock], ['Mail', MAIL, email], ['GitHub', GH, go(GH)], ['LinkedIn', IN, go(IN)],
+].map(([label, sub, run]) => ({ label, sub, run, text: '' }));
+walk(FS, [], (parts, text) => INDEX.push({ label: parts.at(-1), sub: tilde(parts), text, run: () => show(parts) }));
+const SUGGESTED = ['Terminal', 'Finder', 'about.txt', 'cern.txt', 'contact.txt', 'Keyboard Shortcuts']; // shown before you type
+let hits = [], cur = 0;
+function search() {
+  const q = sIn.value.trim().toLowerCase();
+  hits = !q ? INDEX.filter(it => SUGGESTED.includes(it.label)) : INDEX.map(it => {
+    if (it.label.toLowerCase().includes(q)) return { ...it, rank: 0 };
+    const l = it.text.split('\n').find(l => l.toLowerCase().includes(q));
+    return l && { ...it, sub: l.replace(/^[-\s]+/, ''), rank: 1 };
+  }).filter(Boolean).sort((a, b) => a.rank - b.rank).slice(0, 7);
+  // only digits and operators get through, so evaluating it is safe
+  if (/^[\d\s+\-*/().%^]+$/.test(q) && /\d\s*[+\-*/%^]\s*[\d(]/.test(q)) {
+    try {
+      const v = Function(`"use strict"; return (${q.replaceAll('^', '**')})`)();
+      if (Number.isFinite(v)) hits.unshift({ label: String(+v.toFixed(8)), sub: `${q} =   (Enter copies)`, run: () => navigator.clipboard?.writeText(String(+v.toFixed(8))) });
+    } catch {}
+  }
+  cur = 0; paint(true);
+}
+function paint(fresh) { // rows only animate in for a new result set, not when the arrow keys move the highlight
+  sRes.replaceChildren(...hits.map((h, i) => {
+    const b = $('button', i === cur ? 'cur' : ''); fresh ? b.style.setProperty('--i', i) : b.style.animation = 'none'; b.append($('span', '', h.label), $('small', '', h.sub));
+    b.onclick = () => pick(i);
+    return b;
+  }));
+}
+function pick(i) { spot.classList.remove('open'); hits[i]?.run(); }
+function spotlight() {
+  closeMenus();
+  if (spot.classList.toggle('open')) { sIn.value = ''; search(); sIn.focus(); } else sIn.blur();
+}
+sIn.oninput = search;
+sIn.onkeydown = e => {
+  if (e.key === 'Enter') pick(cur);
+  else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && hits.length) { e.preventDefault(); cur = (cur + (e.key === 'ArrowDown' ? 1 : hits.length - 1)) % hits.length; paint(); }
+};
+
+// when the browser window changes size, re-tile snapped windows and pull stray ones back into view
+addEventListener('resize', () => {
+  for (const w of desk.querySelectorAll('.win')) {
+    if (w.dataset.snap) { const [l, t, ww, h] = zone(w.dataset.snap); Object.assign(w.style, { left: l + 'px', top: t + 'px', width: ww + 'px', height: h + 'px' }); }
+    else { w.style.left = clamp(w.offsetLeft, 90 - w.offsetWidth, desk.clientWidth - 90) + 'px'; w.style.top = clamp(w.offsetTop, 0, Math.max(0, desk.clientHeight - 112)) + 'px'; }
+  }
+});
+
+// ---- global keys and clicks ----
+addEventListener('pointerdown', e => {
+  if (!e.target.closest('#menubar details, .ctx')) closeMenus();
+  if (!e.target.closest('#spot, #spotBtn')) spot.classList.remove('open');
+});
+const KONAMI = 'ArrowUp,ArrowUp,ArrowDown,ArrowDown,ArrowLeft,ArrowRight,ArrowLeft,ArrowRight,b,a'; let keys = [];
+addEventListener('keydown', e => {
+  keys = [...keys, e.key].slice(-10);
+  if (keys.join() === KONAMI) {
+    const on = document.body.classList.toggle('party');
+    if (document.getElementById('term') && !fg) print(on ? 'Cheat code accepted. Party mode on. Enter it again to calm down.' : 'Party mode off.');
+  }
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && e.code === 'KeyK') { e.preventDefault(); return spotlight(); }
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'Period') { // Finder's real shortcut for hidden files
+    e.preventDefault(); showHidden = !showHidden;
+    if (document.getElementById('finder')) finder(fpath, true);
+    return;
+  }
+  if (e.key === 'Escape') { closeMenus(); spot.classList.remove('open'); return; }
+  if (!(e.ctrlKey && e.altKey)) return;
+  // e.code, not e.key: Option turns letters into symbols on a Mac keyboard
+  const tile = name => onActive(a => snap(a, name));
+  const fn = {
+    KeyT: terminal, KeyF: () => finder([]), KeyW: onActive(close), KeyM: onActive(minimise), KeyL: lock, Tab: cycle, Space: spotlight,
+    ArrowLeft: tile('left'), ArrowRight: tile('right'), ArrowUp: tile('max'), ArrowDown: onActive(unsnap),
+    KeyU: tile('top-left'), KeyI: tile('top-right'), KeyJ: tile('bottom-left'), KeyK: tile('bottom-right'),
+  }[e.code];
+  if (fn) { e.preventDefault(); fn(); }
+});
+
+function notify(title, text) {
+  const n = $('div', 'note glass'), x = $('button', 'x');
+  x.setAttribute('aria-label', 'Dismiss notification');
+  n.append(x, $('b', '', title), text);
+  const bye = () => { n.classList.add('out'); setTimeout(() => n.remove(), 300); };
+  x.onclick = bye; setTimeout(bye, 7000);
+  document.body.append(n);
+}
+
+// ---- go ----
+const bootMs = boot();
+wallpaper();
+terminal();
+// the welcome tip shows once per browser, not on every refresh
+try {
+  if (!localStorage.getItem('welcomed')) {
+    localStorage.setItem('welcomed', '1');
+    setTimeout(() => notify('Welcome', 'Double-click icons to open them, drag windows to an edge to tile them, and press ⌘K to search. More under Help.'), bootMs + 500);
+  }
+} catch {} // storage blocked: skip the tip
+
+console.log('%cLooking under the hood?', 'font: 600 15px system-ui', `\nThis desktop is one HTML file with no dependencies. View source, it is all there.\nIf you like that sort of thing: ${MAIL}`);
+
+// self-checks
+console.assert(resolve('work/../about.txt').join() === 'about.txt', 'resolve ..');
+console.assert(typeof node(resolve('~/work/cern.txt')) === 'string', 'resolve ~');
+console.assert(node(resolve('../..')) === FS && node(['constructor']) === undefined, 'root clamp / own keys only');
+console.assert(!names(FS).includes('.secret.txt') && names(FS, true).includes('.secret.txt'), 'hidden files');
+console.assert(zoneAt(2, 400) === 'left' && zoneAt(innerWidth - 2, 5) === 'top-right' && zoneAt(400, 400) === null, 'snap zones');
+</script>
+</body>
+</html>
