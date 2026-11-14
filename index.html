@@ -13,7 +13,12 @@
 <meta property="og:url" content="https://eduardperreca.github.io/portfolio/">
 <meta property="og:title" content="Eduardo Perreca — Software Engineer">
 <meta property="og:description" content="Eduardo Perreca, software engineer in Utrecht: backend, distributed systems and applied AI. Previously CERN and Tesla.">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://eduardperreca.github.io/portfolio/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A macOS-style desktop with a terminal window open">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Person","name":"Eduardo Perreca","jobTitle":"Software Engineer","url":"https://eduardperreca.github.io/portfolio/","email":"mailto:perrecae@gmail.com","address":{"@type":"PostalAddress","addressLocality":"Utrecht","addressCountry":"NL"},"alumniOf":[{"@type":"CollegeOrUniversity","name":"Università degli Studi di Milano"},{"@type":"CollegeOrUniversity","name":"Utrecht University"}],"sameAs":["https://github.com/eduardperreca","https://linkedin.com/in/eduardo-perreca"]}</script>
 <style>
   * { box-sizing: border-box; margin: 0; }
@@ -278,7 +283,8 @@
     #menubar details:not(.sys):not(.right) { display: none; }
     .side { display: none; }
     .win { max-height: calc(100dvh - 130px); }
-    .icon { width: 84px; }
+    .icon { width: 88px; }
+    .icon span { font-size: 11px; }
     #icons { top: 10px; left: 8px; right: 8px; bottom: auto; flex-flow: row wrap; justify-content: center; } /* a row on top, so windows open below it */
     #dock button { width: 44px; height: 44px; }
   }
@@ -290,6 +296,7 @@
   }
   .nojs { position: fixed; inset: 0; z-index: 100000; overflow: auto; padding: 8vh 7vw; background: #fff; font-size: 16px; line-height: 1.6; user-select: text; }
   .nojs h1 { font-size: 32px; letter-spacing: -.02em; }
+  .nojs p { margin-top: .7em; max-width: 42em; }
   @media (prefers-reduced-motion: reduce) {
     #boot { display: none; }
     #wall i, .win, .note, .lock, .pop, .panel, #spot div button, #dock .chip { animation: none; }
