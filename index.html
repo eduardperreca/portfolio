@@ -4,7 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Eduardo Perreca — Software Engineer</title>
-<meta name="description" content="Eduardo Perreca, software engineer based in Utrecht. A desktop you can click around, with a working terminal.">
+<meta name="description" content="Eduardo Perreca, software engineer in Utrecht: backend, distributed systems and applied AI. Previously CERN and Tesla.">
+<meta name="author" content="Eduardo Perreca">
+<meta name="theme-color" content="#23307a">
+<link rel="canonical" href="https://eduardperreca.github.io/portfolio/">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c1c1e'/%3E%3Cpath d='M16 22l10 9-10 9' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M31 42h16' stroke='%23fff' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://eduardperreca.github.io/portfolio/">
+<meta property="og:title" content="Eduardo Perreca — Software Engineer">
+<meta property="og:description" content="Eduardo Perreca, software engineer in Utrecht: backend, distributed systems and applied AI. Previously CERN and Tesla.">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Person","name":"Eduardo Perreca","jobTitle":"Software Engineer","url":"https://eduardperreca.github.io/portfolio/","email":"mailto:perrecae@gmail.com","address":{"@type":"PostalAddress","addressLocality":"Utrecht","addressCountry":"NL"},"alumniOf":[{"@type":"CollegeOrUniversity","name":"Università degli Studi di Milano"},{"@type":"CollegeOrUniversity","name":"Utrecht University"}],"sameAs":["https://github.com/eduardperreca","https://linkedin.com/in/eduardo-perreca"]}</script>
 <style>
   * { box-sizing: border-box; margin: 0; }
   @property --base { syntax: "<color>"; inherits: true; initial-value: #23307a; }
@@ -267,9 +277,19 @@
     .win { left: 6px !important; width: calc(100vw - 12px) !important; max-height: calc(100vh - 130px); resize: none; }
     #menubar details:not(.sys):not(.right) { display: none; }
     .side { display: none; }
+    .win { max-height: calc(100dvh - 130px); }
     .icon { width: 84px; }
+    #icons { top: 10px; left: 8px; right: 8px; bottom: auto; flex-flow: row wrap; justify-content: center; } /* a row on top, so windows open below it */
     #dock button { width: 44px; height: 44px; }
   }
+  @media (pointer: coarse) {
+    button { touch-action: manipulation; }
+    /* iOS zooms into inputs under 16px: render at 16px, scale back down to match the terminal text */
+    .term .line { overflow: hidden; }
+    .term input { font-size: 16px; transform: scale(.78125); transform-origin: 0 50%; margin-right: -28%; }
+  }
+  .nojs { position: fixed; inset: 0; z-index: 100000; overflow: auto; padding: 8vh 7vw; background: #fff; font-size: 16px; line-height: 1.6; user-select: text; }
+  .nojs h1 { font-size: 32px; letter-spacing: -.02em; }
   @media (prefers-reduced-motion: reduce) {
     #boot { display: none; }
     #wall i, .win, .note, .lock, .pop, .panel, #spot div button, #dock .chip { animation: none; }
@@ -287,6 +307,14 @@
 <nav id="dock" aria-label="Dock"></nav>
 <div id="spot" class="glass"><input placeholder="Spotlight Search" aria-label="Spotlight Search" spellcheck="false" autocomplete="off"><div></div></div>
 
+<noscript><article class="nojs">
+  <h1>Eduardo Perreca</h1>
+  <p>Software engineer in Utrecht, Netherlands. Backend, distributed systems and applied AI.</p>
+  <p>CERN (Software Engineer Intern, 2026) · Tesla (Software Engineer Intern, 2025–26) · Gemini Security (Founding Software Engineer, 2025) · Università degli Studi di Milano (Research Intern, 2024–25) · Robotics Europe (CTO, 2020–25).</p>
+  <p>Finishing an MSc in Computer Science at the University of Milan and starting an MSc in Artificial Intelligence at Utrecht University.</p>
+  <p><a href="mailto:perrecae@gmail.com">perrecae@gmail.com</a> · <a href="https://github.com/eduardperreca">GitHub</a> · <a href="https://linkedin.com/in/eduardo-perreca">LinkedIn</a></p>
+  <p>This site is an interactive desktop; turn on JavaScript to use it.</p>
+</article></noscript>
 <script type="module">
 const MAIL = 'perrecae@gmail.com', GH = 'https://github.com/eduardperreca', IN = 'https://linkedin.com/in/eduardo-perreca';
 
@@ -1422,7 +1450,7 @@ terminal();
 try {
   if (!localStorage.getItem('welcomed')) {
     localStorage.setItem('welcomed', '1');
-    setTimeout(() => notify('Welcome', 'Double-click icons to open them, drag windows to an edge to tile them, and press ⌘K to search. More under Help.'), bootMs + 500);
+    setTimeout(() => notify('Welcome', coarse ? 'Tap the icons to open them, or tap the terminal and type help.' : 'Double-click icons to open them, drag windows to an edge to tile them, and press ⌘K to search. More under Help.'), bootMs + 500);
   }
 } catch {} // storage blocked: skip the tip
 
